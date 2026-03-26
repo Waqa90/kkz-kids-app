@@ -52,7 +52,7 @@ export async function saveMathsResultAsync(result: Omit<MathsResult, 'id' | 'dat
   setLocalResults([{ ...result, id: localId, dateTime }, ...existing]);
   try {
     const supabase = createClient();
-    await supabase.from('maths_results').insert({
+    const { error } = await supabase.from('maths_results').insert({
       profile_key: PROFILE_KEY,
       child_name: result.childName ?? null,
       set_id: result.mathsSetId,
@@ -63,7 +63,10 @@ export async function saveMathsResultAsync(result: Omit<MathsResult, 'id' | 'dat
       total: result.total,
       date_time: dateTime,
     });
-  } catch { /* localStorage already saved */ }
+    if (error) console.error('[mathsResults] Supabase insert failed:', error.message);
+  } catch (err) {
+    console.error('[mathsResults] Supabase unavailable:', err);
+  }
 }
 
 export async function getMathsResultsAsync(): Promise<MathsResult[]> {

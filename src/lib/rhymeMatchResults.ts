@@ -64,7 +64,7 @@ export async function saveRhymeMatchResult(
   // Sync to Supabase
   try {
     const supabase = createClient();
-    await supabase.from('rhyme_match_results').insert({
+    const { error } = await supabase.from('rhyme_match_results').insert({
       profile_key: PROFILE_KEY,
       story_title: result.storyTitle,
       child_name: result.childName ?? null,
@@ -73,8 +73,9 @@ export async function saveRhymeMatchResult(
       attempts: result.attempts,
       date_time: dateTime,
     });
-  } catch {
-    // Supabase unavailable — localStorage already saved
+    if (error) console.error('[rhymeMatchResults] Supabase insert failed:', error.message);
+  } catch (err) {
+    console.error('[rhymeMatchResults] Supabase unavailable:', err);
   }
 }
 

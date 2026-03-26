@@ -64,7 +64,7 @@ export async function saveWordMatchResult(
   // Sync to Supabase
   try {
     const supabase = createClient();
-    await supabase.from('word_match_results').insert({
+    const { error } = await supabase.from('word_match_results').insert({
       profile_key: PROFILE_KEY,
       story_title: result.storyTitle,
       child_name: result.childName ?? null,
@@ -73,8 +73,9 @@ export async function saveWordMatchResult(
       attempts: result.attempts,
       date_time: dateTime,
     });
-  } catch {
-    // Supabase unavailable — localStorage already saved
+    if (error) console.error('[wordMatchResults] Supabase insert failed:', error.message);
+  } catch (err) {
+    console.error('[wordMatchResults] Supabase unavailable:', err);
   }
 }
 

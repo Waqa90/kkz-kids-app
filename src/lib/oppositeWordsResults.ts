@@ -64,7 +64,7 @@ export async function saveOppositeWordsResult(
   // Sync to Supabase
   try {
     const supabase = createClient();
-    await supabase.from('opposite_words_results').insert({
+    const { error } = await supabase.from('opposite_words_results').insert({
       profile_key: PROFILE_KEY,
       story_title: result.storyTitle,
       child_name: result.childName ?? null,
@@ -73,8 +73,9 @@ export async function saveOppositeWordsResult(
       attempts: result.attempts,
       date_time: dateTime,
     });
-  } catch {
-    // Supabase unavailable — localStorage already saved
+    if (error) console.error('[oppositeWordsResults] Supabase insert failed:', error.message);
+  } catch (err) {
+    console.error('[oppositeWordsResults] Supabase unavailable:', err);
   }
 }
 

@@ -62,7 +62,7 @@ export async function saveQuizResult(
   // Sync to Supabase
   try {
     const supabase = createClient();
-    await supabase.from('quiz_results').insert({
+    const { error } = await supabase.from('quiz_results').insert({
       profile_key: PROFILE_KEY,
       story_title: result.storyTitle,
       child_name: result.childName ?? null,
@@ -70,8 +70,9 @@ export async function saveQuizResult(
       total: result.total,
       date_time: dateTime,
     });
-  } catch {
-    // Supabase unavailable — localStorage already saved
+    if (error) console.error('[quizResults] Supabase insert failed:', error.message);
+  } catch (err) {
+    console.error('[quizResults] Supabase unavailable:', err);
   }
 }
 

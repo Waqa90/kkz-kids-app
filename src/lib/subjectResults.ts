@@ -54,7 +54,7 @@ export async function saveSubjectResultAsync(result: Omit<SubjectResult, 'id' | 
   setLocalResults([{ ...result, id: localId, dateTime }, ...existing]);
   try {
     const supabase = createClient();
-    await supabase.from('subject_results').insert({
+    const { error } = await supabase.from('subject_results').insert({
       profile_key: PROFILE_KEY,
       child_name: result.childName ?? null,
       activity_id: result.activityId,
@@ -66,7 +66,10 @@ export async function saveSubjectResultAsync(result: Omit<SubjectResult, 'id' | 
       total: result.total,
       date_time: dateTime,
     });
-  } catch { /* localStorage already saved */ }
+    if (error) console.error('[subjectResults] Supabase insert failed:', error.message);
+  } catch (err) {
+    console.error('[subjectResults] Supabase unavailable:', err);
+  }
 }
 
 export async function getSubjectResultsAsync(): Promise<SubjectResult[]> {

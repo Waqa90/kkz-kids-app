@@ -62,7 +62,7 @@ export async function saveFillInBlanksResult(
   // Sync to Supabase
   try {
     const supabase = createClient();
-    await supabase.from('fill_in_blanks_results').insert({
+    const { error } = await supabase.from('fill_in_blanks_results').insert({
       profile_key: PROFILE_KEY,
       story_title: result.storyTitle,
       child_name: result.childName ?? null,
@@ -70,8 +70,9 @@ export async function saveFillInBlanksResult(
       total: result.total,
       date_time: dateTime,
     });
-  } catch {
-    // Supabase unavailable — localStorage already saved
+    if (error) console.error('[fillInBlanksResults] Supabase insert failed:', error.message);
+  } catch (err) {
+    console.error('[fillInBlanksResults] Supabase unavailable:', err);
   }
 }
 
