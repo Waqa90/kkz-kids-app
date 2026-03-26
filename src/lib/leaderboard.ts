@@ -1,8 +1,8 @@
 // Leaderboard — aggregates results from all stores
 
-import { getQuizResults } from '@/lib/quizResults';
-import { getMathsResults } from '@/lib/mathsResults';
-import { getSubjectResults } from '@/lib/subjectResults';
+import { getQuizResults, getQuizResultsAsync } from '@/lib/quizResults';
+import { getMathsResults, getMathsResultsAsync } from '@/lib/mathsResults';
+import { getSubjectResults, getSubjectResultsAsync } from '@/lib/subjectResults';
 import { loadParentSettings } from '@/app/parent/components/SettingsPanel';
 import { CHILD_NAMES } from '@/lib/childProfile';
 
@@ -73,13 +73,8 @@ function computeStreak(dates: string[]): { current: number; longest: number } {
 
 interface RawActivity { childName?: string; score: number; total: number; dateTime: string; subject?: string; }
 
-export function buildLeaderboard(): LeaderboardEntry[] {
+function buildFromRawActivities(all: RawActivity[]): LeaderboardEntry[] {
   const settings = loadParentSettings();
-  const quizResults = getQuizResults().map((r): RawActivity => ({ childName: r.childName, score: r.score, total: r.total, dateTime: r.dateTime, subject: 'english' }));
-  const mathsResults = getMathsResults().map((r): RawActivity => ({ childName: r.childName, score: r.score, total: r.total, dateTime: r.dateTime, subject: 'maths' }));
-  const subjectResults = getSubjectResults().map((r): RawActivity => ({ childName: r.childName, score: r.score, total: r.total, dateTime: r.dateTime, subject: r.subject }));
-  const all: RawActivity[] = [...quizResults, ...mathsResults, ...subjectResults];
-
   const childNames = CHILD_NAMES as readonly string[];
   const entries: Omit<LeaderboardEntry, 'rank'>[] = childNames.map((name) => {
     const child = settings.children[name] ?? { name, emoji: '🐱', photoUrl: null };
@@ -121,6 +116,28 @@ export function buildLeaderboard(): LeaderboardEntry[] {
   return sorted.slice(0, 3).map((e, i) => ({ ...e, rank: (i + 1) as 1 | 2 | 3 }));
 }
 
+/** Synchronous version — reads from localStorage only (fast, used as initial render) */
+export function buildLeaderboard(): LeaderboardEntry[] {
+  const quizResults = getQuizResults().map((r): RawActivity => ({ childName: r.childName, score: r.score, total: r.total, dateTime: r.dateTime, subject: 'english' }));
+  const mathsResults = getMathsResults().map((r): RawActivity => ({ childName: r.childName, score: r.score, total: r.total, dateTime: r.dateTime, subject: 'maths' }));
+  const subjectResults = getSubjectResults().map((r): RawActivity => ({ childName: r.childName, score: r.score, total: r.total, dateTime: r.dateTime, subject: r.subject }));
+  return buildFromRawActivities([...quizResults, ...mathsResults, ...subjectResults]);
+}
+
+/** Async version — fetches from Supabase (accurate, used for updates) */
 export async function buildLeaderboardAsync(): Promise<LeaderboardEntry[]> {
-  return buildLeaderboard();
+  try {
+    const [quizData, mathsData, subjectData] = await Promise.all([
+      getQuizResultsAsync(),
+      getMathsResultsAsync(),
+      getSubjectResultsAsync(),
+    ]);
+    const quizResults = quizData.map((r): RawActivity => ({ childName: r.childName, score: r.score, total: r.total, dateTime: r.dateTime, subject: 'english' }));
+    const mathsResults = mathsData.map((r): RawActivity => ({ childName: r.childName, score: r.score, total: r.total, dateTime: r.dateTime, subject: 'maths' }));
+    const subjectResults = subjectData.map((r): RawActivity => ({ childName: r.childName, score: r.score, total: r.total, dateTime: r.dateTime, subject: r.subject }));
+    return buildFromRawActivities([...quizResults, ...mathsResults, ...subjectResults]);
+  } catch {
+    // Fallback to localStorage if Supabase fails
+    return buildLeaderboard();
+  }
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { buildLeaderboard, type LeaderboardEntry } from '@/lib/leaderboard';
+import { buildLeaderboard, buildLeaderboardAsync, type LeaderboardEntry } from '@/lib/leaderboard';
 import { SUBJECT_META } from '@/lib/childProfile';
 
 const MEDALS = ['🥇', '🥈', '🥉'];
@@ -71,7 +71,12 @@ export default function Leaderboard() {
   const [selected, setSelected] = useState<LeaderboardEntry | null>(null);
 
   useEffect(() => {
-    const load = () => setEntries(buildLeaderboard());
+    // Show localStorage data immediately (fast initial render)
+    setEntries(buildLeaderboard());
+    // Then fetch from Supabase for accurate data
+    const load = () => {
+      buildLeaderboardAsync().then(setEntries).catch(() => {});
+    };
     load();
     const interval = setInterval(load, 60000);
     return () => clearInterval(interval);
