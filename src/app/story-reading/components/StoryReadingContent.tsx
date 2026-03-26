@@ -337,55 +337,78 @@ export default function StoryReadingContent() {
           </p>
         </div>
 
-        {/* ── Child Selector ─────────────────────────────────── */}
+        {/* ── Child Display / Selector ─────────────────────────── */}
         <div className="mb-8">
           <div className="bg-white rounded-3xl border-2 border-purple-100 shadow-sm p-5">
-            <p className="text-center text-lg font-extrabold text-purple-700 mb-4">
-              👋 Who is reading today?
-            </p>
-            <div className="flex justify-center gap-4 flex-wrap">
-              {CHILD_NAMES.map((name) => {
-                const colors: Record<string, string> = {
-                  Kitty: selectedChild === name
-                    ? 'bg-pink-500 text-white border-pink-500 shadow-lg scale-105'
-                    : 'bg-pink-50 text-pink-700 border-pink-200 hover:bg-pink-100',
-                  Karawa: selectedChild === name
-                    ? 'bg-orange-500 text-white border-orange-500 shadow-lg scale-105'
-                    : 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100',
-                  Zech: selectedChild === name
-                    ? 'bg-blue-500 text-white border-blue-500 shadow-lg scale-105'
-                    : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100',
-                };
-                const avatarUrl = getChildAvatar(name);
-                const emoji = getChildEmoji(name);
-                const displayName = getChildDisplayName(name);
-                return (
-                  <button
-                    key={name}
-                    onClick={() => handleSelectChild(name)}
-                    className={`flex flex-col items-center gap-2 px-8 py-4 rounded-2xl border-2 font-extrabold text-lg transition-all active:scale-95 ${colors[name]}`}
-                    aria-label={`Select ${displayName}`}
-                    aria-pressed={selectedChild === name}
-                  >
-                    <span className="text-4xl">
-                      {isMounted && avatarUrl ? (
-                        <img src={avatarUrl} alt={displayName} className="w-10 h-10 rounded-full object-cover" />
-                      ) : (
-                        <span>{emoji}</span>
-                      )}
-                    </span>
-                    <span>{displayName}</span>
-                    {selectedChild === name && (
-                      <span className="text-xs font-bold opacity-80">✓ Selected</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-            {!selectedChild && (
-              <p className="text-center text-sm text-purple-400 font-semibold mt-3">
-                Please select your name to start reading!
-              </p>
+            {selectedChild ? (
+              <>
+                <p className="text-center text-lg font-extrabold text-purple-700 mb-4">
+                  👋 Hi {getChildDisplayName(selectedChild)}!
+                </p>
+                <div className="flex justify-center">
+                  {(() => {
+                    const activeColors: Record<string, string> = {
+                      Kitty: 'bg-pink-500 text-white border-pink-500 shadow-lg',
+                      Karawa: 'bg-orange-500 text-white border-orange-500 shadow-lg',
+                      Zech: 'bg-blue-500 text-white border-blue-500 shadow-lg',
+                    };
+                    const avatarUrl = getChildAvatar(selectedChild);
+                    const emoji = getChildEmoji(selectedChild);
+                    const displayName = getChildDisplayName(selectedChild);
+                    return (
+                      <div className={`flex flex-col items-center gap-2 px-10 py-4 rounded-2xl border-2 font-extrabold text-lg ${activeColors[selectedChild]}`}>
+                        <span className="text-5xl">
+                          {isMounted && avatarUrl ? (
+                            <img src={avatarUrl} alt={displayName} className="w-14 h-14 rounded-full object-cover border-2 border-white shadow" />
+                          ) : (
+                            <span>{emoji}</span>
+                          )}
+                        </span>
+                        <span className="text-xl">{displayName}</span>
+                        <span className="text-xs font-bold opacity-80">Class {childClass}</span>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-center text-lg font-extrabold text-purple-700 mb-4">
+                  👋 Who is reading today?
+                </p>
+                <div className="flex justify-center gap-4 flex-wrap">
+                  {CHILD_NAMES.map((name) => {
+                    const colors: Record<string, string> = {
+                      Kitty: 'bg-pink-50 text-pink-700 border-pink-200 hover:bg-pink-100',
+                      Karawa: 'bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100',
+                      Zech: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100',
+                    };
+                    const avatarUrl = getChildAvatar(name);
+                    const emoji = getChildEmoji(name);
+                    const displayName = getChildDisplayName(name);
+                    return (
+                      <button
+                        key={name}
+                        onClick={() => handleSelectChild(name)}
+                        className={`flex flex-col items-center gap-2 px-8 py-4 rounded-2xl border-2 font-extrabold text-lg transition-all active:scale-95 ${colors[name]}`}
+                        aria-label={`Select ${displayName}`}
+                      >
+                        <span className="text-4xl">
+                          {isMounted && avatarUrl ? (
+                            <img src={avatarUrl} alt={displayName} className="w-10 h-10 rounded-full object-cover" />
+                          ) : (
+                            <span>{emoji}</span>
+                          )}
+                        </span>
+                        <span>{displayName}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-center text-sm text-purple-400 font-semibold mt-3">
+                  Please select your name to start reading!
+                </p>
+              </>
             )}
           </div>
         </div>
