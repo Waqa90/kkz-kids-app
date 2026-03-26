@@ -7,6 +7,7 @@ import { saveMathsResultAsync } from '@/lib/mathsResults';
 import { isSubjectEnabled, getChildControls, getChildClassFromSettings } from '@/app/parent/components/SettingsPanel';
 import { CHILD_NAMES, type ChildName } from '@/lib/childProfile';
 import { playCorrectSound, playWrongSound, playAchievementSound, playGoodJobSound, playNumberTapSound } from '@/lib/sounds';
+import { speak, stopSpeech } from '@/lib/speech';
 import { playCelebrationVoiceForMaths } from '@/lib/celebrationVoice';
 import MathsSetSelector from './MathsSetSelector';
 import AppNav from '@/components/AppNav';
@@ -26,12 +27,26 @@ export default function MathsContent() {
   const [selectedOpt, setSelectedOpt] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null);
   const [showHint, setShowHint] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   const childName = (childParam && CHILD_NAMES.includes(childParam as ChildName)) ? (childParam as ChildName) : null;
 
   useEffect(() => {
     if (!childName) router.replace('/subjects');
   }, [childName, router]);
+
+  useEffect(() => {
+    if (screen === 'quiz' && activeSet && childName && getChildControls(childName).soundEnabled) {
+      const q = activeSet.questions[qIndex];
+      if (q) {
+        stopSpeech();
+        setIsSpeaking(true);
+        speak(q.display, { rate: 0.85, onEnd: () => setIsSpeaking(false), onError: () => setIsSpeaking(false) });
+      }
+    }
+    return () => stopSpeech();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qIndex, screen]);
 
   if (!childName) return null;
 
@@ -71,6 +86,10 @@ export default function MathsContent() {
     const correct = answer.trim() === String(q.correctAnswer).trim();
     setSelectedOpt(answer);
     setFeedback(correct ? 'correct' : 'wrong');
+    if (controls.soundEnabled) {
+      const feedbackText = correct ? 'Correct!' : `The answer was ${q.correctAnswer}`;
+      setTimeout(() => speak(feedbackText, { rate: 1.0, pitch: correct ? 1.4 : 0.9 }), 100);
+    }
     const newScore = correct ? score + 1 : score;
     if (correct) { if (controls.soundEnabled) playCorrectSound(); }
     else { if (controls.soundEnabled) playWrongSound(); }
@@ -162,10 +181,18 @@ export default function MathsContent() {
         </div>
 
         {/* Question card */}
-        <div className={`bg-white rounded-3xl border-4 p-6 shadow-lg mb-4 transition-all duration-300 ${
+        <div className={`relative bg-white rounded-3xl border-4 p-6 shadow-lg mb-4 transition-all duration-300 ${
           feedback === 'correct' ? 'border-green-400 bg-green-50' : feedback === 'wrong' ? 'border-red-400 bg-red-50' : 'border-purple-100'
         }`}>
           {q.emoji && <div className="text-4xl text-center mb-3">{q.emoji}</div>}
+          <button
+            type="button"
+            onClick={() => { if (controls.soundEnabled) { stopSpeech(); speak(q.display, { rate: 0.85 }); } }}
+            title="Read question aloud"
+            className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full bg-purple-100 hover:bg-purple-200 text-purple-500 transition-all"
+          >
+            🔊
+          </button>
           <p className="text-2xl font-extrabold text-purple-900 text-center">{q.display}</p>
           {feedback && (
             <p className={`text-center font-extrabold mt-2 text-lg ${feedback === 'correct' ? 'text-green-600' : 'text-red-600'}`}>

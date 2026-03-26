@@ -12,6 +12,7 @@ import { getSubjectResultsAsync, clearSubjectResultsAsync, type SubjectResult } 
 import Link from 'next/link';
 import AIRecommendations from './components/AIRecommendations';
 import { type ActivityResult } from './components/AIRecommendations';
+import ReportDownload, { type ReportRow } from './components/ReportDownload';
 import SettingsPanel, { loadParentSettings } from './components/SettingsPanel';
 import { STORIES } from '@/lib/stories';
 import {
@@ -268,6 +269,18 @@ export default function ParentPage() {
       dateTime: r.dateTime,
     }));
 
+  const allReportRows: ReportRow[] = rows.map((r) => ({
+    id: r.id,
+    storyTitle: r.storyTitle,
+    childName: r.childName,
+    subject: r.subject,
+    activity: r.activity,
+    score: r.score,
+    total: r.total,
+    dateTime: r.dateTime,
+    level: r.level,
+  }));
+
   const loadResults = useCallback(async () => {
     setLoadingResults(true);
     try {
@@ -368,7 +381,7 @@ export default function ParentPage() {
           <div className="text-center mb-6">
             <div className="text-5xl mb-3">👨‍👩‍👧</div>
             <h1 className="text-2xl font-extrabold text-purple-800">Parent Area</h1>
-            <p className="text-sm text-purple-500 mt-1">Sign in to view Kitty's progress</p>
+            <p className="text-sm text-purple-500 mt-1">Sign in to track your child's learning journey</p>
           </div>
 
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
@@ -476,7 +489,7 @@ export default function ParentPage() {
               </button>
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
             <div className="bg-purple-50 rounded-2xl border-2 border-purple-100 p-4 text-center">
               <div className="text-3xl font-extrabold text-purple-700">{rows.length}</div>
               <div className="text-xs font-bold text-purple-400 mt-0.5">Attempts</div>
@@ -540,6 +553,7 @@ export default function ParentPage() {
                   {stats.length === 0 ? (
                     <p className="text-xs text-purple-300 italic pl-1">No activity in this period</p>
                   ) : (
+                    <div className="overflow-x-auto -mx-1 px-1">
                     <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${stats.length}, minmax(0, 1fr))` }}>
                       {stats.map(({ child, attempts, avgScore, perfectScores }) => (
                         <div
@@ -578,6 +592,7 @@ export default function ParentPage() {
                           </div>
                         </div>
                       ))}
+                    </div>
                     </div>
                   )}
                 </div>
@@ -639,6 +654,9 @@ export default function ParentPage() {
             </div>
           );
         })()}
+
+        {/* Progress Reports */}
+        <ReportDownload rows={allReportRows} settings={currentSettings} />
 
         {/* AI Recommendations */}
         <AIRecommendations results={allActivityResults} />
@@ -749,7 +767,7 @@ export default function ParentPage() {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[580px] text-sm">
                 <thead>
                   <tr className="bg-purple-50 border-b-2 border-purple-100">
                     <th className="text-center px-4 py-3 font-extrabold text-purple-700 text-xs uppercase tracking-wide">

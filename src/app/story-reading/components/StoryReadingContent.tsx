@@ -11,7 +11,6 @@
  */
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import Link from 'next/link';
 import { STORIES, tokenizeText, cleanWordForSpeech, type Story } from '@/lib/stories';
 import { speak, stopSpeech, isSpeechSupported } from '@/lib/speech';
 import { addSavedWord, loadSavedWords } from '@/lib/savedWords';
@@ -457,11 +456,6 @@ export default function StoryReadingContent() {
         {/* Story grid — only shown after child is selected and class confirmed */}
         {selectedChild && classConfirmed && selectedClass ? (
           <>
-            <div className="flex items-center gap-3 mb-4">
-              <Link href="/subjects" className="inline-flex items-center gap-1.5 px-4 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 font-bold text-sm rounded-2xl transition-colors">
-                ← Back to Home
-              </Link>
-            </div>
             <div className="mb-4 flex items-center gap-2 justify-center">
               <span className="px-4 py-1 rounded-full bg-purple-100 text-purple-700 font-bold text-sm">
                 📚 Stories for Class {selectedClass}

@@ -86,7 +86,7 @@ export default function SubjectsContent() {
               </div>
             </div>
           </div>
-          <button onClick={handleSwitch} className="text-xs font-bold text-purple-400 hover:text-purple-600 bg-purple-50 hover:bg-purple-100 px-3 py-2 rounded-xl transition-colors">
+          <button onClick={handleSwitch} className="text-xs font-bold text-purple-400 hover:text-purple-600 bg-purple-50 hover:bg-purple-100 px-3 py-2 rounded-xl transition-colors min-h-[36px]">
             Switch 👋
           </button>
         </div>

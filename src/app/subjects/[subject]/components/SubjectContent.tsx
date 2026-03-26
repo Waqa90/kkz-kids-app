@@ -118,9 +118,9 @@ export default function SubjectContent({ subject, child: childParam }: SubjectCo
         {/* Header */}
         <div className="flex items-center gap-3 mb-5">
           <button onClick={() => router.push(`/subjects?child=${childName}`)} className="p-2 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-600 font-bold transition-colors">←</button>
-          <div className="text-4xl">{meta.emoji}</div>
+          <div className="text-3xl sm:text-4xl">{meta.emoji}</div>
           <div>
-            <h1 className="text-xl font-extrabold text-purple-800">{meta.label}</h1>
+            <h1 className="text-lg sm:text-xl font-extrabold text-purple-800">{meta.label}</h1>
             <p className="text-sm text-purple-500">Class {childClass} · {childName}</p>
           </div>
         </div>

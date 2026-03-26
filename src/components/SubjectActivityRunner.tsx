@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
+import { speak, stopSpeech } from '@/lib/speech';
 import { playCorrectSound, playWrongSound, playAchievementSound, playGoodJobSound } from '@/lib/sounds';
 import type { SubjectKey } from '@/lib/childProfile';
 
@@ -37,7 +38,28 @@ export default function SubjectActivityRunner({
   const [done, setDone] = useState(false);
   const [showHintText, setShowHintText] = useState(false);
 
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const speakQuestion = useCallback((text: string) => {
+    if (!soundEnabled) return;
+    stopSpeech();
+    setIsSpeaking(true);
+    speak(text, {
+      rate: 0.9,
+      onEnd: () => setIsSpeaking(false),
+      onError: () => setIsSpeaking(false),
+    });
+  }, [soundEnabled]);
+
   const q = questions[currentIndex];
+
+  useEffect(() => {
+    if (q && soundEnabled) {
+      speakQuestion(q.question);
+    }
+    return () => stopSpeech();
+    // Only trigger when the question index changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentIndex]);
   const progress = ((currentIndex) / questions.length) * 100;
   const pct = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
   const stars = pct >= 100 ? 3 : pct >= 70 ? 2 : pct >= 40 ? 1 : 0;
@@ -47,6 +69,8 @@ export default function SubjectActivityRunner({
     const correct = answer.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase();
     setSelected(answer);
     setFeedback(correct ? 'correct' : 'wrong');
+    const feedbackText = correct ? 'Correct!' : `The answer was ${q.correctAnswer}`;
+    setTimeout(() => { if (soundEnabled) speak(feedbackText, { rate: 1.0, pitch: correct ? 1.4 : 0.9 }); }, 100);
     if (correct) {
       if (soundEnabled) playCorrectSound();
       setScore((s) => s + 1);
@@ -88,7 +112,7 @@ export default function SubjectActivityRunner({
         <div className="flex gap-1 text-3xl">
           {[1,2,3].map((s) => <span key={s}>{s <= stars ? '⭐' : '☆'}</span>)}
         </div>
-        <button onClick={onBack} className="px-8 py-3 bg-orange-400 hover:bg-orange-500 text-white font-extrabold rounded-2xl transition-all active:scale-95 shadow-md">
+        <button onClick={onBack} className="w-full sm:w-auto px-8 py-3 bg-orange-400 hover:bg-orange-500 text-white font-extrabold rounded-2xl transition-all active:scale-95 shadow-md">
           Back to Activities
         </button>
       </div>
@@ -96,7 +120,7 @@ export default function SubjectActivityRunner({
   }
 
   return (
-    <div className="flex flex-col gap-4 max-w-lg mx-auto px-4 py-4">
+    <div className="flex flex-col gap-4 max-w-lg mx-auto px-4 sm:px-6 py-4">
       {/* Header */}
       <div className="flex items-center gap-3">
         <button onClick={onBack} className="p-2 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-600 font-bold transition-colors">← Back</button>
@@ -110,10 +134,18 @@ export default function SubjectActivityRunner({
       </div>
 
       {/* Question card */}
-      <div className={`bg-white rounded-3xl border-4 p-6 shadow-lg transition-all duration-300 ${
+      <div className={`relative bg-white rounded-3xl border-4 p-6 shadow-lg transition-all duration-300 ${
         feedback === 'correct' ? 'border-green-400 bg-green-50 scale-[1.01]' : feedback === 'wrong' ? 'border-red-400 bg-red-50 animate-[shake_0.3s_ease]' : 'border-purple-100'
       }`}>
         {q.emoji && <div className="text-4xl text-center mb-3">{q.emoji}</div>}
+        <button
+          type="button"
+          onClick={() => speakQuestion(q.question)}
+          title="Read question aloud"
+          className={`absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full transition-all ${isSpeaking ? 'bg-purple-500 text-white animate-pulse' : 'bg-purple-100 hover:bg-purple-200 text-purple-500'}`}
+        >
+          🔊
+        </button>
         <p className="text-lg md:text-xl font-extrabold text-purple-900 text-center leading-snug">{q.question}</p>
         {feedback && (
           <p className={`text-center font-extrabold mt-2 ${feedback === 'correct' ? 'text-green-600' : 'text-red-600'}`}>
