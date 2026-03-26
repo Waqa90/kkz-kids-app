@@ -6,10 +6,10 @@ import { usePathname } from 'next/navigation';
 import AppLogo from '@/components/ui/AppLogo';
 
 const NAV_ITEMS = [
-  { href: '/subjects', emoji: '📚', label: 'Subjects' },
-  { href: '/camera',   emoji: '📷', label: 'Camera'   },
-  { href: '/lab',      emoji: '🧪', label: 'Lab'      },
-  { href: '/parent',   emoji: '👨‍👩‍👧', label: 'Parent'  },
+  { href: '/subjects',   emoji: '📚', label: 'Subjects'   },
+  { href: '/lab',        emoji: '🧪', label: 'Lab'        },
+  { href: '/assessment', emoji: '📝', label: 'Assessment' },
+  { href: '/parent',     emoji: '👨‍👩‍👧', label: 'Parent'    },
 ];
 
 export default function AppNav() {

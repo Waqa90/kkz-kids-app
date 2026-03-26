@@ -22,12 +22,38 @@ export interface LeaderboardEntry {
   rank: 1 | 2 | 3;
 }
 
-function starsForResult(score: number, total: number): number {
+/** Stars for practice activities (Subjects tab) */
+function starsForPractice(score: number, total: number): number {
   if (total === 0) return 0;
   const pct = score / total;
-  if (pct >= 1.0) return 3;
-  if (pct >= 0.7) return 2;
-  return 1;
+  if (pct >= 1.0) return 3;   // 100% = 3 stars
+  if (pct >= 0.8) return 2;   // 80%+ = 2 stars
+  if (pct >= 0.6) return 1;   // 60%+ = 1 star
+  return 0;                    // Below 60% = 0 stars
+}
+
+/** Stars for assessment exams (Assessment tab) — higher reward */
+function starsForAssessment(score: number, total: number): number {
+  if (total === 0) return 0;
+  const pct = score / total;
+  if (pct >= 1.0) return 5;   // 100% = 5 stars
+  if (pct >= 0.8) return 4;   // 80%+ = 4 stars
+  if (pct >= 0.6) return 3;   // 60%+ = 3 stars
+  if (pct >= 0.4) return 1;   // 40%+ = 1 star
+  return 0;                    // Below 40% = 0 stars
+}
+
+/** Backward-compatible alias used for generic results */
+function starsForResult(score: number, total: number): number {
+  return starsForPractice(score, total);
+}
+
+/** Bonus stars for consecutive-day streaks */
+function streakBonusStars(currentStreak: number): number {
+  if (currentStreak >= 7) return 3;   // Full week = +3
+  if (currentStreak >= 5) return 2;   // 5 days = +2
+  if (currentStreak >= 3) return 1;   // 3 days = +1
+  return 0;
 }
 
 function isThisWeek(dateStr: string): boolean {
@@ -71,7 +97,7 @@ function computeStreak(dates: string[]): { current: number; longest: number } {
   return { current, longest };
 }
 
-interface RawActivity { childName?: string; score: number; total: number; dateTime: string; subject?: string; }
+interface RawActivity { childName?: string; score: number; total: number; dateTime: string; subject?: string; isAssessment?: boolean; }
 
 function buildFromRawActivities(all: RawActivity[]): LeaderboardEntry[] {
   const settings = loadParentSettings();
@@ -80,11 +106,18 @@ function buildFromRawActivities(all: RawActivity[]): LeaderboardEntry[] {
     const child = settings.children[name] ?? { name, emoji: '🐱', photoUrl: null };
     const myResults = all.filter((r) => r.childName === name);
     const weeklyResults = myResults.filter((r) => isThisWeek(r.dateTime));
-    const totalStars = myResults.reduce((sum, r) => sum + starsForResult(r.score, r.total), 0);
-    const weeklyStars = weeklyResults.reduce((sum, r) => sum + starsForResult(r.score, r.total), 0);
+    const totalStars = myResults.reduce((sum, r) => {
+      const isAssessment = (r as RawActivity & { isAssessment?: boolean }).isAssessment;
+      return sum + (isAssessment ? starsForAssessment(r.score, r.total) : starsForPractice(r.score, r.total));
+    }, 0);
+    const weeklyActivityStars = weeklyResults.reduce((sum, r) => {
+      const isAssessment = (r as RawActivity & { isAssessment?: boolean }).isAssessment;
+      return sum + (isAssessment ? starsForAssessment(r.score, r.total) : starsForPractice(r.score, r.total));
+    }, 0);
     const perfectScores = myResults.filter((r) => r.total > 0 && r.score === r.total).length;
     const dates = myResults.map((r) => r.dateTime);
     const { current, longest } = computeStreak(dates);
+    const weeklyStars = weeklyActivityStars + streakBonusStars(current);
     const lastActive = myResults.length > 0 ? myResults.sort((a, b) => b.dateTime.localeCompare(a.dateTime))[0].dateTime : null;
     const subjectBreakdown: Record<string, { activities: number; avgScore: number }> = {};
     myResults.forEach((r) => {
