@@ -9,14 +9,185 @@ import PinGate from '@/components/PinGate';
 import AppNav from '@/components/AppNav';
 import toast from 'react-hot-toast';
 import GenerateStory from '@/app/parent/components/GenerateStory';
+import ScannerPanel from './ScannerPanel';
+import ExamBuilderPanel from './ExamBuilderPanel';
 
-type Panel = 'notes' | 'builder';
+type LabTab = 'scanner' | 'notes' | 'exam' | 'practice';
 
 const SUBJECT_KEYS = Object.keys(SUBJECT_META) as SubjectKey[];
 
+// ── Practice Card Builder (Phase 5) — inline in Lab ─────────────────────────
+
+interface PracticeQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correctIndex: number;
+  marks: number;
+}
+
+function newPQ(): PracticeQuestion {
+  return { id: `pq-${Date.now()}-${Math.random().toString(36).slice(2)}`, question: '', options: ['', '', '', ''], correctIndex: 0, marks: 1 };
+}
+
+function PracticeCardBuilder() {
+  const [title, setTitle] = useState('');
+  const [subject, setSubject] = useState<SubjectKey>('maths');
+  const [classLevel, setClassLevel] = useState<3 | 4 | 5>(4);
+  const [difficulty, setDifficulty] = useState<'Easy' | 'Medium' | 'Hard'>('Medium');
+  const [questions, setQuestions] = useState<PracticeQuestion[]>([newPQ()]);
+  const [saved, setSaved] = useState(false);
+
+  const addQ = () => setQuestions((prev) => [...prev, newPQ()]);
+  const removeQ = (idx: number) => setQuestions((prev) => prev.filter((_, i) => i !== idx));
+  const updateQ = (idx: number, upd: Partial<PracticeQuestion>) =>
+    setQuestions((prev) => prev.map((q, i) => (i === idx ? { ...q, ...upd } : q)));
+  const updateOpt = (qi: number, oi: number, val: string) =>
+    setQuestions((prev) => prev.map((q, i) => {
+      if (i !== qi) return q;
+      const opts = [...q.options];
+      opts[oi] = val;
+      return { ...q, options: opts };
+    }));
+
+  const handleSave = () => {
+    if (!title.trim()) { toast.error('Enter a card title.'); return; }
+    const validQs = questions.filter((q) => q.question.trim() && q.options.some((o) => o.trim()));
+    if (validQs.length === 0) { toast.error('Add at least one question.'); return; }
+    const meta = SUBJECT_META[subject];
+    saveUploadedActivity({
+      id: `pc-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      subject,
+      class: classLevel,
+      title: title.trim(),
+      emoji: meta.emoji,
+      color: meta.color,
+      levelColor: meta.levelColor,
+      activityType: 'multiple-choice',
+      source: 'uploaded',
+      difficulty,
+      questions: validQs.map((q) => ({
+        id: q.id,
+        question: q.question,
+        type: 'multiple-choice' as const,
+        options: q.options.filter((o) => o.trim()),
+        correctAnswer: q.options[q.correctIndex] ?? q.options[0],
+        correctIndex: q.correctIndex,
+      })),
+    });
+    toast.success(`✅ Card "${title}" saved to ${meta.label} in Subjects tab!`);
+    setSaved(true);
+  };
+
+  if (saved) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-6xl mb-4">🎉</div>
+        <h3 className="text-xl font-extrabold text-purple-800 mb-2">Card Saved!</h3>
+        <p className="text-purple-400 font-medium mb-6">It will appear in the Subjects tab under {SUBJECT_META[subject].label}.</p>
+        <button onClick={() => { setTitle(''); setQuestions([newPQ()]); setSaved(false); }}
+          className="px-6 py-3 bg-purple-500 text-white rounded-2xl font-bold hover:bg-purple-600">
+          + Create Another Card
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-3xl border-2 border-purple-100 p-4 shadow-sm">
+        <p className="font-extrabold text-purple-700 mb-3">Practice Card Details</p>
+        <div className="space-y-3">
+          <input value={title} onChange={(e) => setTitle(e.target.value)}
+            placeholder="Card title (e.g. Multiplication Tables)"
+            className="w-full px-4 py-2.5 rounded-xl border-2 border-purple-200 focus:border-purple-400 focus:outline-none font-semibold text-sm" />
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className="text-xs font-bold text-purple-500 block mb-1">Subject</label>
+              <select value={subject} onChange={(e) => setSubject(e.target.value as SubjectKey)}
+                className="w-full px-2 py-1.5 rounded-xl border-2 border-purple-200 font-bold text-purple-700 text-xs bg-white">
+                {SUBJECT_KEYS.map((s) => <option key={s} value={s}>{SUBJECT_META[s].emoji} {SUBJECT_META[s].label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-bold text-purple-500 block mb-1">Class</label>
+              <div className="flex gap-1">
+                {([3, 4, 5] as const).map((c) => (
+                  <button key={c} onClick={() => setClassLevel(c)}
+                    className={`flex-1 py-1.5 rounded-lg font-extrabold text-xs ${classLevel === c ? 'bg-purple-500 text-white' : 'bg-purple-100 text-purple-600'}`}>
+                    {c}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-bold text-purple-500 block mb-1">Difficulty</label>
+              <div className="flex gap-1">
+                {(['Easy', 'Medium', 'Hard'] as const).map((d) => (
+                  <button key={d} onClick={() => setDifficulty(d)}
+                    className={`flex-1 py-1.5 rounded-lg text-xs font-bold ${difficulty === d
+                      ? d === 'Easy' ? 'bg-green-400 text-white' : d === 'Medium' ? 'bg-yellow-400 text-white' : 'bg-red-400 text-white'
+                      : 'bg-gray-100 text-gray-500'}`}>
+                    {d[0]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {questions.map((q, qi) => (
+        <div key={q.id} className="bg-white rounded-2xl border-2 border-purple-100 p-4 shadow-sm space-y-3">
+          <div className="flex items-start justify-between gap-2">
+            <span className="w-7 h-7 flex items-center justify-center bg-purple-100 text-purple-700 rounded-full font-extrabold text-xs flex-shrink-0 mt-0.5">
+              {qi + 1}
+            </span>
+            <div className="flex-1 space-y-2">
+              <textarea value={q.question} onChange={(e) => updateQ(qi, { question: e.target.value })}
+                placeholder="Enter question…" rows={2}
+                className="w-full px-3 py-2 rounded-xl border-2 border-gray-200 focus:border-purple-400 focus:outline-none text-sm font-medium resize-none" />
+              {q.options.map((opt, oi) => (
+                <div key={oi} className="flex items-center gap-2">
+                  <span className="w-6 h-6 flex items-center justify-center bg-gray-100 rounded-full text-xs font-bold text-gray-500 flex-shrink-0">
+                    {String.fromCharCode(65 + oi)}
+                  </span>
+                  <input value={opt} onChange={(e) => updateOpt(qi, oi, e.target.value)}
+                    placeholder={`Option ${String.fromCharCode(65 + oi)}`}
+                    className={`flex-1 px-3 py-1.5 rounded-xl border-2 text-sm font-medium focus:outline-none ${q.correctIndex === oi ? 'border-green-400 bg-green-50' : 'border-gray-200 focus:border-purple-300'}`} />
+                  <button onClick={() => updateQ(qi, { correctAnswer: opt, correctIndex: oi })}
+                    className={`text-xs px-2 py-1 rounded-lg font-bold ${q.correctIndex === oi ? 'bg-green-400 text-white' : 'bg-gray-100 text-gray-400 hover:bg-green-100'}`}>
+                    ✓
+                  </button>
+                </div>
+              ))}
+            </div>
+            {questions.length > 1 && (
+              <button onClick={() => removeQ(qi)} className="text-red-300 hover:text-red-500 text-sm flex-shrink-0">🗑</button>
+            )}
+          </div>
+        </div>
+      ))}
+
+      <div className="flex gap-3">
+        <button onClick={addQ}
+          className="flex-1 py-3 bg-purple-100 text-purple-700 rounded-2xl font-bold hover:bg-purple-200 transition-all">
+          + Add Question
+        </button>
+        <button onClick={handleSave} disabled={!title.trim()}
+          className="flex-1 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-extrabold rounded-2xl shadow-lg transition-all active:scale-95 disabled:opacity-50">
+          🚀 Save to Subjects
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Main LabContent ──────────────────────────────────────────────────────────
+
 export default function LabContent() {
   const [unlocked, setUnlocked] = useState(false);
-  const [panel, setPanel] = useState<Panel>('notes');
+  const [activeTab, setActiveTab] = useState<LabTab>('scanner');
   const [notes, setNotes] = useState<LabNote[]>([]);
   const [selectedNote, setSelectedNote] = useState<LabNote | null>(null);
   const [filterChild, setFilterChild] = useState('all');
@@ -61,7 +232,6 @@ export default function LabContent() {
     setSelectedNote(note);
     setGeneratedActivities(note.processedActivities ?? []);
     setTitleDraft(note.title);
-    setPanel('builder');
   };
 
   const settings = loadParentSettings();
@@ -81,8 +251,8 @@ export default function LabContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          provider: 'ANTHROPIC',
-          model: 'claude-sonnet-4-6',
+          provider: 'GEMINI',
+          model: 'gemini-2.0-flash',
           messages: [
             {
               role: 'user',
@@ -102,7 +272,8 @@ export default function LabContent() {
       loadNotes();
       toast.success('Activities generated!');
     } catch (err) {
-      toast.error('Generation failed. Check your AI settings and try again.');
+      console.error(err);
+      toast.error('Generation failed. Check your Gemini API key in Vercel settings.');
     } finally {
       setGenerating(false);
     }
@@ -149,6 +320,13 @@ export default function LabContent() {
     );
   }
 
+  const TABS: { id: LabTab; label: string; emoji: string }[] = [
+    { id: 'scanner', label: 'Scanner', emoji: '📷' },
+    { id: 'notes', label: 'Notes', emoji: '📁' },
+    { id: 'exam', label: 'Exam Builder', emoji: '📝' },
+    { id: 'practice', label: 'Practice Cards', emoji: '🃏' },
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-orange-50 to-pink-50 pb-24 md:pb-0">
       <AppNav />
@@ -164,146 +342,174 @@ export default function LabContent() {
           </button>
         </div>
 
-        {/* Mobile tabs */}
-        <div className="md:hidden flex border-b border-purple-100 mb-4">
-          <button onClick={() => setPanel('notes')} className={`flex-1 py-2.5 text-sm font-extrabold ${panel === 'notes' ? 'text-purple-700 border-b-2 border-purple-500' : 'text-purple-400'}`}>📁 Notes</button>
-          <button onClick={() => setPanel('builder')} className={`flex-1 py-2.5 text-sm font-extrabold ${panel === 'builder' ? 'text-purple-700 border-b-2 border-purple-500' : 'text-purple-400'}`}>🔨 Builder</button>
+        {/* Tab bar */}
+        <div className="flex gap-1 bg-white rounded-2xl border-2 border-purple-100 p-1 mb-5 overflow-x-auto shadow-sm">
+          {TABS.map((tab) => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-sm whitespace-nowrap transition-all flex-1 justify-center ${activeTab === tab.id ? 'bg-purple-500 text-white shadow-md' : 'text-purple-500 hover:bg-purple-50'}`}>
+              <span>{tab.emoji}</span>
+              <span className="hidden sm:inline">{tab.label}</span>
+            </button>
+          ))}
         </div>
 
-        <div className="md:flex md:gap-6">
-          {/* ── Sidebar / Notes ── */}
-          <div className={`md:w-72 flex-shrink-0 ${panel === 'builder' ? 'hidden md:block' : ''}`}>
-            {/* Filters */}
-            <div className="flex gap-2 mb-3">
-              <select value={filterChild} onChange={(e) => setFilterChild(e.target.value)}
-                className="flex-1 text-xs rounded-xl border border-purple-200 px-2 py-1.5 font-semibold text-purple-700 bg-white">
-                <option value="all">All children</option>
-                {children.map((c) => <option key={c} value={c}>{c}</option>)}
-                <option value="parent">Parent</option>
-              </select>
-              <select value={filterSubject} onChange={(e) => setFilterSubject(e.target.value)}
-                className="flex-1 text-xs rounded-xl border border-purple-200 px-2 py-1.5 font-semibold text-purple-700 bg-white">
-                <option value="all">All subjects</option>
-                {SUBJECT_KEYS.map((s) => <option key={s} value={s}>{SUBJECT_META[s].label}</option>)}
-              </select>
+        {/* ── SCANNER TAB ── */}
+        {activeTab === 'scanner' && (
+          <ScannerPanel onSaved={() => { loadNotes(); setActiveTab('notes'); }} />
+        )}
+
+        {/* ── NOTES TAB ── */}
+        {activeTab === 'notes' && (
+          <div className="md:flex md:gap-6">
+            {/* Sidebar */}
+            <div className="md:w-72 flex-shrink-0">
+              {/* Filters */}
+              <div className="flex gap-2 mb-3">
+                <select value={filterChild} onChange={(e) => setFilterChild(e.target.value)}
+                  className="flex-1 text-xs rounded-xl border border-purple-200 px-2 py-1.5 font-semibold text-purple-700 bg-white">
+                  <option value="all">All children</option>
+                  {children.map((c) => <option key={c} value={c}>{c}</option>)}
+                  <option value="parent">Parent</option>
+                </select>
+                <select value={filterSubject} onChange={(e) => setFilterSubject(e.target.value)}
+                  className="flex-1 text-xs rounded-xl border border-purple-200 px-2 py-1.5 font-semibold text-purple-700 bg-white">
+                  <option value="all">All subjects</option>
+                  {SUBJECT_KEYS.map((s) => <option key={s} value={s}>{SUBJECT_META[s].label}</option>)}
+                </select>
+              </div>
+
+              {/* Note list */}
+              <div className="flex flex-col gap-2 max-h-[60vh] overflow-y-auto pr-1">
+                {filteredNotes.length === 0 ? (
+                  <div className="text-center py-8 bg-white rounded-2xl border-2 border-dashed border-purple-200">
+                    <p className="text-4xl mb-2">📷</p>
+                    <p className="text-sm text-purple-400 font-medium">No notes yet.</p>
+                    <p className="text-xs text-purple-300 mt-1">Scan a document in the Scanner tab!</p>
+                    <button onClick={() => setActiveTab('scanner')}
+                      className="mt-3 px-4 py-2 bg-purple-100 text-purple-600 rounded-xl text-xs font-bold hover:bg-purple-200 transition-all">
+                      Go to Scanner →
+                    </button>
+                  </div>
+                ) : filteredNotes.map((note) => (
+                  <div key={note.id}
+                    className={`bg-white rounded-2xl border-2 p-3 cursor-pointer transition-all hover:shadow-md ${selectedNote?.id === note.id ? 'border-purple-400 shadow-md' : 'border-purple-100'}`}
+                    onClick={() => handleSelectNote(note)}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1 mb-1 flex-wrap">
+                          <span className="text-base">{SUBJECT_META[note.subject as SubjectKey]?.emoji ?? '📚'}</span>
+                          <span className="text-xs bg-purple-100 text-purple-600 rounded-full px-1.5 font-bold">{SUBJECT_META[note.subject as SubjectKey]?.label ?? note.subject}</span>
+                          <span className="text-xs bg-blue-100 text-blue-600 rounded-full px-1.5 font-bold">Class {note.class}</span>
+                          {note.publishedAt
+                            ? <span className="text-xs bg-green-100 text-green-600 rounded-full px-1.5 font-bold">✅ Published</span>
+                            : <span className="text-xs bg-yellow-100 text-yellow-600 rounded-full px-1.5 font-bold">📝 Draft</span>}
+                        </div>
+                        <p className="text-xs font-semibold text-purple-800 truncate">{note.title}</p>
+                        <p className="text-xs text-purple-400">{note.childName} · {new Date(note.extractedAt).toLocaleDateString()}</p>
+                      </div>
+                      <button onClick={(e) => { e.stopPropagation(); setDeleteConfirm(note.id); }}
+                        className="text-red-300 hover:text-red-500 text-sm flex-shrink-0">🗑</button>
+                    </div>
+                    {deleteConfirm === note.id && (
+                      <div className="mt-2 p-2 bg-red-50 rounded-xl border border-red-200">
+                        <p className="text-xs text-red-700 font-bold mb-1">Delete this note?</p>
+                        <div className="flex gap-1">
+                          <button onClick={(e) => { e.stopPropagation(); handleDelete(note.id); }} className="px-2 py-0.5 bg-red-500 text-white rounded-lg text-xs font-bold">Yes</button>
+                          <button onClick={(e) => { e.stopPropagation(); setDeleteConfirm(null); }} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-lg text-xs font-bold">No</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {/* Note list */}
-            <div className="flex flex-col gap-2 max-h-[60vh] overflow-y-auto pr-1">
-              {filteredNotes.length === 0 ? (
-                <div className="text-center py-8 bg-white rounded-2xl border-2 border-dashed border-purple-200">
-                  <p className="text-4xl mb-2">📷</p>
-                  <p className="text-sm text-purple-400 font-medium">No notes yet.</p>
-                  <p className="text-xs text-purple-300 mt-1">Upload a photo in the Camera tab!</p>
+            {/* Builder panel */}
+            <div className="flex-1 min-w-0 mt-4 md:mt-0">
+              {!selectedNote ? (
+                <div className="flex flex-col items-center justify-center h-64 bg-white rounded-3xl border-2 border-dashed border-purple-200">
+                  <p className="text-4xl mb-2">👈</p>
+                  <p className="text-purple-400 font-semibold text-sm">Select a note to build activities</p>
                 </div>
-              ) : filteredNotes.map((note) => (
-                <div key={note.id}
-                  className={`bg-white rounded-2xl border-2 p-3 cursor-pointer transition-all hover:shadow-md ${selectedNote?.id === note.id ? 'border-purple-400 shadow-md' : 'border-purple-100'}`}
-                  onClick={() => handleSelectNote(note)}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1 mb-1 flex-wrap">
-                        <span className="text-base">{SUBJECT_META[note.subject as SubjectKey]?.emoji ?? '📚'}</span>
-                        <span className="text-xs bg-purple-100 text-purple-600 rounded-full px-1.5 font-bold">{SUBJECT_META[note.subject as SubjectKey]?.label ?? note.subject}</span>
-                        <span className="text-xs bg-blue-100 text-blue-600 rounded-full px-1.5 font-bold">Class {note.class}</span>
-                        {note.publishedAt
-                          ? <span className="text-xs bg-green-100 text-green-600 rounded-full px-1.5 font-bold">✅ Published</span>
-                          : <span className="text-xs bg-yellow-100 text-yellow-600 rounded-full px-1.5 font-bold">📝 Draft</span>}
-                      </div>
-                      <p className="text-xs font-semibold text-purple-800 truncate">{note.title}</p>
-                      <p className="text-xs text-purple-400">{note.childName} · {new Date(note.extractedAt).toLocaleDateString()}</p>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  {/* Note header */}
+                  <div className="bg-white rounded-3xl border-2 border-purple-100 p-4">
+                    <div className="flex items-center gap-2 flex-wrap mb-2">
+                      <span className="text-2xl">{SUBJECT_META[selectedNote.subject as SubjectKey]?.emoji ?? '📚'}</span>
+                      {editingTitle ? (
+                        <input value={titleDraft} onChange={(e) => setTitleDraft(e.target.value)}
+                          onBlur={() => { updateLabNote(selectedNote.id, { title: titleDraft }); setSelectedNote((p) => p ? { ...p, title: titleDraft } : p); setEditingTitle(false); }}
+                          className="flex-1 text-sm font-bold border border-purple-300 rounded-lg px-2 py-1 focus:outline-none" autoFocus />
+                      ) : (
+                        <span className="text-sm font-extrabold text-purple-800 flex-1 cursor-pointer hover:text-purple-600" onClick={() => setEditingTitle(true)}>
+                          {selectedNote.title} ✏️
+                        </span>
+                      )}
+                      <span className="text-xs bg-blue-100 text-blue-600 rounded-full px-2 font-bold">Class {selectedNote.class}</span>
+                      <span className="text-xs bg-purple-100 text-purple-600 rounded-full px-2 font-bold">{selectedNote.childName}</span>
+                      {selectedNote.publishedAt
+                        ? <span className="text-xs bg-green-100 text-green-600 rounded-full px-2 font-bold">✅ Published</span>
+                        : <span className="text-xs bg-yellow-100 text-yellow-600 rounded-full px-2 font-bold">📝 Draft</span>}
                     </div>
-                    <button onClick={(e) => { e.stopPropagation(); setDeleteConfirm(note.id); }}
-                      className="text-red-300 hover:text-red-500 text-sm flex-shrink-0">🗑</button>
+                    <div className="text-xs font-semibold text-purple-400">{selectedNote.activityTypes.join(' · ')} · {selectedNote.questionCount} questions</div>
                   </div>
-                  {deleteConfirm === note.id && (
-                    <div className="mt-2 p-2 bg-red-50 rounded-xl border border-red-200">
-                      <p className="text-xs text-red-700 font-bold mb-1">Delete this note?</p>
-                      <div className="flex gap-1">
-                        <button onClick={(e) => { e.stopPropagation(); handleDelete(note.id); }} className="px-2 py-0.5 bg-red-500 text-white rounded-lg text-xs font-bold">Yes</button>
-                        <button onClick={(e) => { e.stopPropagation(); setDeleteConfirm(null); }} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded-lg text-xs font-bold">No</button>
-                      </div>
+
+                  {/* Raw text */}
+                  <div className="bg-purple-50 rounded-3xl border-2 border-purple-100 p-4 max-h-40 overflow-y-auto">
+                    <p className="text-xs font-bold text-purple-600 mb-2">📄 Extracted Text</p>
+                    <p className="text-sm text-purple-800 font-medium whitespace-pre-wrap">{selectedNote.rawText || 'No text extracted yet.'}</p>
+                  </div>
+
+                  {/* Generate */}
+                  <button onClick={handleGenerate} disabled={generating || !selectedNote.rawText}
+                    className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 text-white font-extrabold rounded-2xl shadow-lg transition-all active:scale-95">
+                    {generating ? '🤖 Creating activities…' : '🤖 Generate Activities with AI'}
+                  </button>
+
+                  {/* Generated activities */}
+                  {generatedActivities.length > 0 && (
+                    <div className="flex flex-col gap-3">
+                      {generatedActivities.map((act: any, idx: number) => (
+                        <div key={idx} className="bg-white rounded-2xl border-2 border-purple-100 p-4">
+                          <p className="font-extrabold text-purple-800 mb-1">{act.title}</p>
+                          <span className="text-xs bg-purple-100 text-purple-600 rounded-full px-2 py-0.5 font-bold">{act.activityType}</span>
+                          <div className="mt-2 flex flex-col gap-1">
+                            {(act.questions ?? []).slice(0, 3).map((q: any, qi: number) => (
+                              <p key={qi} className="text-xs text-purple-600 truncate">• {q.question}</p>
+                            ))}
+                            {(act.questions ?? []).length > 3 && <p className="text-xs text-purple-400">…and {(act.questions ?? []).length - 3} more</p>}
+                          </div>
+                        </div>
+                      ))}
+                      <button onClick={handlePublish}
+                        className="w-full py-3 bg-green-500 hover:bg-green-600 text-white font-extrabold rounded-2xl shadow-lg transition-all active:scale-95">
+                        🚀 Publish to {SUBJECT_META[selectedNote.subject as SubjectKey]?.label ?? selectedNote.subject}
+                      </button>
                     </div>
                   )}
                 </div>
-              ))}
+              )}
             </div>
           </div>
+        )}
 
-          {/* ── Main Panel / Builder ── */}
-          <div className={`flex-1 min-w-0 ${panel === 'notes' && !selectedNote ? 'hidden md:block' : ''}`}>
-            {!selectedNote ? (
-              <div className="flex flex-col items-center justify-center h-64 bg-white rounded-3xl border-2 border-dashed border-purple-200">
-                <p className="text-4xl mb-2">👈</p>
-                <p className="text-purple-400 font-semibold text-sm">Select a note to build activities</p>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-4">
-                {/* Note header */}
-                <div className="bg-white rounded-3xl border-2 border-purple-100 p-4">
-                  <div className="flex items-center gap-2 flex-wrap mb-2">
-                    <span className="text-2xl">{SUBJECT_META[selectedNote.subject as SubjectKey]?.emoji ?? '📚'}</span>
-                    {editingTitle ? (
-                      <input value={titleDraft} onChange={(e) => setTitleDraft(e.target.value)}
-                        onBlur={() => { updateLabNote(selectedNote.id, { title: titleDraft }); setSelectedNote((p) => p ? { ...p, title: titleDraft } : p); setEditingTitle(false); }}
-                        className="flex-1 text-sm font-bold border border-purple-300 rounded-lg px-2 py-1 focus:outline-none"
-                        autoFocus />
-                    ) : (
-                      <span className="text-sm font-extrabold text-purple-800 flex-1 cursor-pointer hover:text-purple-600" onClick={() => setEditingTitle(true)}>
-                        {selectedNote.title} ✏️
-                      </span>
-                    )}
-                    <span className="text-xs bg-blue-100 text-blue-600 rounded-full px-2 font-bold">Class {selectedNote.class}</span>
-                    <span className="text-xs bg-purple-100 text-purple-600 rounded-full px-2 font-bold">{selectedNote.childName}</span>
-                    {selectedNote.publishedAt
-                      ? <span className="text-xs bg-green-100 text-green-600 rounded-full px-2 font-bold">✅ Published</span>
-                      : <span className="text-xs bg-yellow-100 text-yellow-600 rounded-full px-2 font-bold">📝 Draft</span>}
-                  </div>
-                  <div className="text-xs font-semibold text-purple-400">{selectedNote.activityTypes.join(' · ')} · {selectedNote.questionCount} questions</div>
-                </div>
+        {/* ── EXAM BUILDER TAB ── */}
+        {activeTab === 'exam' && (
+          <ExamBuilderPanel />
+        )}
 
-                {/* Raw text */}
-                <div className="bg-purple-50 rounded-3xl border-2 border-purple-100 p-4 max-h-40 overflow-y-auto">
-                  <p className="text-xs font-bold text-purple-600 mb-2">📄 Extracted Text</p>
-                  <p className="text-sm text-purple-800 font-medium whitespace-pre-wrap">{selectedNote.rawText || 'No text extracted yet.'}</p>
-                </div>
+        {/* ── PRACTICE CARDS TAB ── */}
+        {activeTab === 'practice' && (
+          <PracticeCardBuilder />
+        )}
 
-                {/* Generate button */}
-                <button onClick={handleGenerate} disabled={generating || !selectedNote.rawText}
-                  className="w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 text-white font-extrabold rounded-2xl shadow-lg transition-all active:scale-95">
-                  {generating ? '🤖 Creating activities…' : '🤖 Generate Activities'}
-                </button>
-
-                {/* Generated activities */}
-                {generatedActivities.length > 0 && (
-                  <div className="flex flex-col gap-3">
-                    {generatedActivities.map((act: any, idx: number) => (
-                      <div key={idx} className="bg-white rounded-2xl border-2 border-purple-100 p-4">
-                        <p className="font-extrabold text-purple-800 mb-1">{act.title}</p>
-                        <span className="text-xs bg-purple-100 text-purple-600 rounded-full px-2 py-0.5 font-bold">{act.activityType}</span>
-                        <div className="mt-2 flex flex-col gap-1">
-                          {(act.questions ?? []).slice(0, 3).map((q: any, qi: number) => (
-                            <p key={qi} className="text-xs text-purple-600 truncate">• {q.question}</p>
-                          ))}
-                          {(act.questions ?? []).length > 3 && <p className="text-xs text-purple-400">…and {(act.questions ?? []).length - 3} more</p>}
-                        </div>
-                      </div>
-                    ))}
-                    <button onClick={handlePublish}
-                      className="w-full py-3 bg-green-500 hover:bg-green-600 text-white font-extrabold rounded-2xl shadow-lg transition-all active:scale-95">
-                      🚀 Publish to {SUBJECT_META[selectedNote.subject as SubjectKey]?.label ?? selectedNote.subject}
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
+        {/* Generate New Story — shown in notes tab */}
+        {activeTab === 'notes' && (
+          <div className="mt-6">
+            <GenerateStory activityResults={[]} />
           </div>
-        </div>
-
-        {/* Generate New Story */}
-        <div className="mt-6">
-          <GenerateStory activityResults={[]} />
-        </div>
+        )}
       </div>
     </div>
   );

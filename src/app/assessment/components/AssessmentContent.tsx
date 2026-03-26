@@ -6,6 +6,7 @@ import {
   type ChildName, getChildClass,
 } from '@/lib/childProfile';
 import { loadParentSettings } from '@/app/parent/components/SettingsPanel';
+import { saveAssessmentResult } from '@/lib/assessmentResults';
 import ChildPicker from '@/components/ChildPicker';
 import AppNav from '@/components/AppNav';
 
@@ -132,9 +133,8 @@ export default function AssessmentContent() {
           if (userAnswer === correct) totalScore += q.marks;
         });
       });
-      // Save result to localStorage & sync
-      const result = {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      // Save result to Supabase + localStorage
+      saveAssessmentResult({
         assessmentId: activeExam.id,
         assessmentTitle: activeExam.title,
         childName: selectedChild,
@@ -152,10 +152,7 @@ export default function AssessmentContent() {
             return sum + (userAnswer === q.correctAnswer.trim().toLowerCase() ? q.marks : 0);
           }, 0),
         })),
-        dateTime: new Date().toISOString(),
-      };
-      const existing = JSON.parse(localStorage.getItem('kkz_assessment_results') || '[]');
-      localStorage.setItem('kkz_assessment_results', JSON.stringify([result, ...existing]));
+      });
     }
   };
 
@@ -456,10 +453,9 @@ function PastResults({ childName }: { childName: string }) {
   }>>([]);
 
   useEffect(() => {
-    try {
-      const all = JSON.parse(localStorage.getItem('kkz_assessment_results') || '[]');
-      setResults(all.filter((r: { childName: string }) => r.childName === childName));
-    } catch { /* ignore */ }
+    import('@/lib/assessmentResults').then(({ getAssessmentResultsAsync }) => {
+      getAssessmentResultsAsync(childName).then((all) => setResults(all as any));
+    });
   }, [childName]);
 
   if (results.length === 0) return null;
