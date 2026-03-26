@@ -1,0 +1,126 @@
+// Leaderboard — aggregates results from all stores
+
+import { getQuizResults } from '@/lib/quizResults';
+import { getMathsResults } from '@/lib/mathsResults';
+import { getSubjectResults } from '@/lib/subjectResults';
+import { loadParentSettings } from '@/app/parent/components/SettingsPanel';
+import { CHILD_NAMES } from '@/lib/childProfile';
+
+export interface LeaderboardEntry {
+  childName: string;
+  displayName: string;
+  emoji: string;
+  photoUrl: string | null;
+  totalStars: number;
+  weeklyStars: number;
+  totalActivities: number;
+  perfectScores: number;
+  currentStreak: number;
+  longestStreak: number;
+  lastActive: string | null;
+  subjectBreakdown: Record<string, { activities: number; avgScore: number }>;
+  rank: 1 | 2 | 3;
+}
+
+function starsForResult(score: number, total: number): number {
+  if (total === 0) return 0;
+  const pct = score / total;
+  if (pct >= 1.0) return 3;
+  if (pct >= 0.7) return 2;
+  return 1;
+}
+
+function isThisWeek(dateStr: string): boolean {
+  const d = new Date(dateStr);
+  const now = new Date();
+  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  return d >= weekAgo && d <= now;
+}
+
+function computeStreak(dates: string[]): { current: number; longest: number } {
+  if (dates.length === 0) return { current: 0, longest: 0 };
+  const daySet = new Set(dates.map((d) => new Date(d).toDateString()));
+  const dayArray = Array.from(daySet).map((d) => new Date(d)).sort((a, b) => b.getTime() - a.getTime());
+  let current = 0;
+  let longest = 0;
+  let streak = 1;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const yesterday = new Date(today.getTime() - 86400000);
+  const mostRecent = dayArray[0];
+  mostRecent.setHours(0, 0, 0, 0);
+  if (mostRecent.getTime() === today.getTime() || mostRecent.getTime() === yesterday.getTime()) {
+    current = 1;
+    for (let i = 1; i < dayArray.length; i++) {
+      const prev = new Date(dayArray[i - 1].getTime() - 86400000);
+      prev.setHours(0, 0, 0, 0);
+      dayArray[i].setHours(0, 0, 0, 0);
+      if (dayArray[i].getTime() === prev.getTime()) { current++; streak++; }
+      else break;
+    }
+  }
+  streak = 1;
+  for (let i = 1; i < dayArray.length; i++) {
+    const prev = new Date(dayArray[i - 1].getTime() - 86400000);
+    prev.setHours(0, 0, 0, 0);
+    dayArray[i].setHours(0, 0, 0, 0);
+    if (dayArray[i].getTime() === prev.getTime()) { streak++; longest = Math.max(longest, streak); }
+    else { longest = Math.max(longest, streak); streak = 1; }
+  }
+  longest = Math.max(longest, streak, current);
+  return { current, longest };
+}
+
+interface RawActivity { childName?: string; score: number; total: number; dateTime: string; subject?: string; }
+
+export function buildLeaderboard(): LeaderboardEntry[] {
+  const settings = loadParentSettings();
+  const quizResults = getQuizResults().map((r): RawActivity => ({ childName: r.childName, score: r.score, total: r.total, dateTime: r.dateTime, subject: 'english' }));
+  const mathsResults = getMathsResults().map((r): RawActivity => ({ childName: r.childName, score: r.score, total: r.total, dateTime: r.dateTime, subject: 'maths' }));
+  const subjectResults = getSubjectResults().map((r): RawActivity => ({ childName: r.childName, score: r.score, total: r.total, dateTime: r.dateTime, subject: r.subject }));
+  const all: RawActivity[] = [...quizResults, ...mathsResults, ...subjectResults];
+
+  const childNames = CHILD_NAMES as readonly string[];
+  const entries: Omit<LeaderboardEntry, 'rank'>[] = childNames.map((name) => {
+    const child = settings.children[name] ?? { name, emoji: '🐱', photoUrl: null };
+    const myResults = all.filter((r) => r.childName === name);
+    const weeklyResults = myResults.filter((r) => isThisWeek(r.dateTime));
+    const totalStars = myResults.reduce((sum, r) => sum + starsForResult(r.score, r.total), 0);
+    const weeklyStars = weeklyResults.reduce((sum, r) => sum + starsForResult(r.score, r.total), 0);
+    const perfectScores = myResults.filter((r) => r.total > 0 && r.score === r.total).length;
+    const dates = myResults.map((r) => r.dateTime);
+    const { current, longest } = computeStreak(dates);
+    const lastActive = myResults.length > 0 ? myResults.sort((a, b) => b.dateTime.localeCompare(a.dateTime))[0].dateTime : null;
+    const subjectBreakdown: Record<string, { activities: number; avgScore: number }> = {};
+    myResults.forEach((r) => {
+      const subj = r.subject ?? 'english';
+      if (!subjectBreakdown[subj]) subjectBreakdown[subj] = { activities: 0, avgScore: 0 };
+      subjectBreakdown[subj].activities++;
+      subjectBreakdown[subj].avgScore += r.total > 0 ? (r.score / r.total) * 100 : 0;
+    });
+    Object.keys(subjectBreakdown).forEach((k) => {
+      subjectBreakdown[k].avgScore = Math.round(subjectBreakdown[k].avgScore / subjectBreakdown[k].activities);
+    });
+    return {
+      childName: name,
+      displayName: child.name,
+      emoji: child.emoji,
+      photoUrl: child.photoUrl,
+      totalStars,
+      weeklyStars,
+      totalActivities: myResults.length,
+      perfectScores,
+      currentStreak: current,
+      longestStreak: longest,
+      lastActive,
+      subjectBreakdown,
+    };
+  });
+
+  const sorted = [...entries].sort((a, b) => b.weeklyStars - a.weeklyStars || b.totalStars - a.totalStars);
+  return sorted.slice(0, 3).map((e, i) => ({ ...e, rank: (i + 1) as 1 | 2 | 3 }));
+}
+
+export async function buildLeaderboardAsync(): Promise<LeaderboardEntry[]> {
+  return buildLeaderboard();
+}
