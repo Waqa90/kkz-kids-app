@@ -29,7 +29,7 @@ import RhymeMatchGame from './RhymeMatchGame';
 import OppositeWordsGame from './OppositeWordsGame';
 import NounVerbAdjectiveSortGame from './NounVerbAdjectiveSortGame';
 import { getSelectedChild, setSelectedChild, CHILD_NAMES, type ChildName, CLASS_ALLOWED_LEVELS } from '@/lib/childProfile';
-import { loadParentSettings } from '@/app/parent/components/SettingsPanel';
+import { loadParentSettings, getChildClassFromSettings } from '@/app/parent/components/SettingsPanel';
 import { getQuizResultsAsync } from '@/lib/quizResults';
 import { getFillInBlanksResultsAsync } from '@/lib/fillInBlanksResults';
 import { getWordMatchResultsAsync } from '@/lib/wordMatchResults';
@@ -43,8 +43,6 @@ export default function StoryReadingContent() {
   const [selectedStory, setSelectedStory] = useState<Story | null>(null);
   const [allStories, setAllStories] = useState<Story[]>(STORIES);
   const [selectedChild, setSelectedChildState] = useState<ChildName | null>(null);
-  const [classConfirmed, setClassConfirmed] = useState(false);
-  const [selectedClass, setSelectedClass] = useState<3 | 4 | 5 | null>(null);
   const [storyStars, setStoryStars] = useState<Record<string, StoryStars>>({});
   const [activeTab, setActiveTab] = useState<Tab>('read');
   const [activeWord, setActiveWord] = useState<string | null>(null);
@@ -304,15 +302,6 @@ export default function StoryReadingContent() {
   const handleSelectChild = (name: ChildName) => {
     setSelectedChild(name);
     setSelectedChildState(name);
-    setClassConfirmed(false); // reset class confirmation when child changes
-    setSelectedClass(null); // reset class selection
-  };
-
-  const handleConfirmClass = () => {
-    if (selectedChild && selectedClass) {
-      setSelectedChild(selectedChild);
-      setClassConfirmed(true);
-    }
   };
 
   // Update illustration position when active sentence changes
@@ -329,9 +318,10 @@ export default function StoryReadingContent() {
 
   // ── Render story selector ─────────────────────────────────
   if (!selectedStory) {
-    // Filtered stories based on child's class
-    const filteredStories = selectedChild && classConfirmed && selectedClass
-      ? allStories.filter((s) => CLASS_ALLOWED_LEVELS[selectedClass].includes(s.level))
+    // Filtered stories based on child's class (auto-detected from parent settings)
+    const childClass = selectedChild ? getChildClassFromSettings(selectedChild) : null;
+    const filteredStories = selectedChild && childClass
+      ? allStories.filter((s) => CLASS_ALLOWED_LEVELS[childClass].includes(s.level))
       : allStories;
 
     return (
@@ -385,7 +375,7 @@ export default function StoryReadingContent() {
                       )}
                     </span>
                     <span>{displayName}</span>
-                    {selectedChild === name && classConfirmed && (
+                    {selectedChild === name && (
                       <span className="text-xs font-bold opacity-80">✓ Selected</span>
                     )}
                   </button>
@@ -400,65 +390,12 @@ export default function StoryReadingContent() {
           </div>
         </div>
 
-        {/* ── Class Confirmation ─────────────────────────────── */}
-        {selectedChild && !classConfirmed && (
-          <div className="mb-8">
-            <div className="bg-white rounded-3xl border-2 border-yellow-200 shadow-sm p-6 text-center">
-              <p className="text-2xl font-extrabold text-purple-800 mb-2">🏫 Class?</p>
-              <p className="text-purple-500 font-semibold mb-6">
-                Which class are you in?
-              </p>
-              <div className="flex justify-center gap-4 mb-4">
-                <div className="flex flex-col items-center gap-3 px-10 py-5 rounded-2xl border-2 border-yellow-400 bg-yellow-50">
-                  <span className="text-5xl">
-                    {selectedChild ? (
-                      isMounted && getChildAvatar(selectedChild) ? (
-                        <img src={getChildAvatar(selectedChild)!} alt={getChildDisplayName(selectedChild)} className="w-12 h-12 rounded-full object-cover" />
-                      ) : (
-                        <span>{getChildEmoji(selectedChild)}</span>
-                      )
-                    ) : '🦁'}
-                  </span>
-                  <span className="text-xl font-extrabold text-purple-800">{selectedChild ? getChildDisplayName(selectedChild) : ''}</span>
-                  <select
-                    value={selectedClass ?? ''}
-                    onChange={(e) => {
-                      const val = parseInt(e.target.value);
-                      if (val === 3 || val === 4 || val === 5) setSelectedClass(val);
-                      else setSelectedClass(null);
-                    }}
-                    className="mt-1 px-4 py-2 rounded-full border-2 border-yellow-400 bg-white text-purple-800 font-bold text-sm focus:outline-none focus:border-purple-400 cursor-pointer"
-                  >
-                    <option value="">Select Class…</option>
-                    <option value="3">Class 3</option>
-                    <option value="4">Class 4</option>
-                    <option value="5">Class 5</option>
-                  </select>
-                </div>
-              </div>
-              <button
-                onClick={handleConfirmClass}
-                disabled={!selectedClass}
-                className="mt-2 px-10 py-3 rounded-2xl bg-purple-500 text-white font-extrabold text-lg hover:bg-purple-600 transition-all active:scale-95 shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                ✅ Yes, that&apos;s me!
-              </button>
-              <button
-                onClick={() => setSelectedChildState(null)}
-                className="mt-3 block mx-auto text-sm text-purple-400 font-semibold hover:text-purple-600 transition-colors"
-              >
-                ← Go back
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Story grid — only shown after child is selected and class confirmed */}
-        {selectedChild && classConfirmed && selectedClass ? (
+        {/* Story grid — shown immediately after child is selected (class auto-detected) */}
+        {selectedChild && childClass ? (
           <>
             <div className="mb-4 flex items-center gap-2 justify-center">
               <span className="px-4 py-1 rounded-full bg-purple-100 text-purple-700 font-bold text-sm">
-                📚 Stories for Class {selectedClass}
+                📚 Class {childClass} stories for {getChildDisplayName(selectedChild)}
               </span>
             </div>
             <StorySelector stories={filteredStories} onSelect={setSelectedStory} storyStars={storyStars} />
