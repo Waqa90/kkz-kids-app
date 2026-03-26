@@ -14,6 +14,7 @@ import AIRecommendations from './components/AIRecommendations';
 import { type ActivityResult } from './components/AIRecommendations';
 import ReportDownload, { type ReportRow } from './components/ReportDownload';
 import SettingsPanel, { loadParentSettings } from './components/SettingsPanel';
+import AssessmentResultsPanel from './components/AssessmentResultsPanel';
 import { STORIES } from '@/lib/stories';
 import {
   BarChart,
@@ -654,6 +655,9 @@ export default function ParentPage() {
             </div>
           );
         })()}
+
+        {/* Assessment Exam Results */}
+        <AssessmentResultsPanel />
 
         {/* Progress Reports */}
         <ReportDownload rows={allReportRows} settings={currentSettings} />
