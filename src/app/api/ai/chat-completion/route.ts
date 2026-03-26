@@ -19,12 +19,46 @@ function formatErrorResponse(error: unknown, provider?: string) {
   };
 }
 
+/** Call Gemini REST API directly (the llm-sdk doesn't support Gemini) */
+async function callGeminiDirect(
+  model: string,
+  messages: Array<{ role: string; content: string }>,
+  systemPrompt?: string,
+  apiKey?: string,
+): Promise<string> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  const contents = messages.map((m) => ({
+    role: m.role === 'user' ? 'user' : 'model',
+    parts: [{ text: m.content }],
+  }));
+
+  const body: Record<string, unknown> = { contents };
+  if (systemPrompt) {
+    body.systemInstruction = { parts: [{ text: systemPrompt }] };
+  }
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const errBody = await res.text();
+    throw new Error(`Gemini API ${res.status}: ${errBody}`);
+  }
+
+  const data = await res.json();
+  return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+}
+
 export async function POST(request: NextRequest) {
   let body: any = {};
 
   try {
     body = await request.json();
-    const { provider, model, messages, stream = false, parameters = {} } = body;
+    const { provider, model, messages, stream = false, systemPrompt, parameters = {} } = body;
 
     if (!provider || !model || !messages?.length) {
       return NextResponse.json(
@@ -41,6 +75,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // ── Gemini: call directly (not through llm-sdk) ──
+    if (provider === 'GEMINI') {
+      const content = await callGeminiDirect(model, messages, systemPrompt, apiKey);
+      return NextResponse.json({ content });
+    }
+
+    // ── Other providers: use llm-sdk ──
     if (stream) {
       const response = await completion({
         model,

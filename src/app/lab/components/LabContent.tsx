@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { getLabNotes, deleteLabNote, updateLabNote, type LabNote } from '@/lib/labNotes';
+import { getLabNotes, getLabNotesAsync, deleteLabNote, updateLabNote, type LabNote } from '@/lib/labNotes';
 import { saveUploadedActivity } from '@/lib/subjectContent';
 import { SUBJECT_META, type SubjectKey } from '@/lib/childProfile';
 import { loadParentSettings } from '@/app/parent/components/SettingsPanel';
@@ -203,7 +203,11 @@ export default function LabContent() {
     setUnlocked(isUnlocked);
   }, []);
 
-  const loadNotes = useCallback(() => setNotes(getLabNotes()), []);
+  const loadNotes = useCallback(() => {
+    // Show local instantly, then sync from Supabase
+    setNotes(getLabNotes());
+    getLabNotesAsync().then((synced) => setNotes(synced)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (unlocked) loadNotes();
