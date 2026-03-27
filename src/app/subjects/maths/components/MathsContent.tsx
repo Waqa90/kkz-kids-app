@@ -232,7 +232,7 @@ export default function MathsContent() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-orange-50 to-pink-50 pb-24 md:pb-0">
         <AppNav />
-        <main className="max-w-2xl mx-auto px-4 py-6">
+        <main className="max-w-2xl md:max-w-4xl lg:max-w-6xl mx-auto px-4 py-6">
           <div className="flex items-center gap-3 mb-5">
             <button onClick={() => router.push(`/subjects?child=${childName}`)} className="p-2 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-600 font-bold transition-colors">←</button>
             <div>
@@ -244,7 +244,7 @@ export default function MathsContent() {
           {uploadedMathsActivities.length > 0 && (
             <div className="mt-6">
               <p className="text-xs font-extrabold text-purple-500 uppercase tracking-wide mb-3">📤 Practice Cards</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {uploadedMathsActivities.map((activity) => (
                   <div key={activity.id} className={`${activity.color} rounded-3xl border-2 border-transparent p-5 shadow-md hover:shadow-xl transition-all`}>
                     <div className="flex items-start justify-between mb-3">

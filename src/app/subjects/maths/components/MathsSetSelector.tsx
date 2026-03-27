@@ -24,7 +24,7 @@ export default function MathsSetSelector({ sets, childName, onSelect }: MathsSet
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
       {sets.map((set) => (
         <div key={set.id} className={`${set.color} rounded-3xl border-2 border-transparent p-5 shadow-md hover:shadow-xl transition-all`}>
           <div className="flex items-start justify-between mb-3">
