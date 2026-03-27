@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { getLabNotes, getLabNotesAsync, deleteLabNote, updateLabNote, type LabNote } from '@/lib/labNotes';
-import { saveUploadedActivity, getUploadedActivitiesAsync } from '@/lib/subjectContent';
+import { saveUploadedActivity, deleteUploadedActivity, getUploadedActivities, getUploadedActivitiesAsync, type SubjectActivity } from '@/lib/subjectContent';
 import { SUBJECT_META, type SubjectKey } from '@/lib/childProfile';
 import { loadParentSettings } from '@/app/parent/components/SettingsPanel';
 import PinGate from '@/components/PinGate';
@@ -13,10 +13,11 @@ import ScannerPanel from './ScannerPanel';
 import ExamBuilderPanel from './ExamBuilderPanel';
 
 type LabTab = 'scanner' | 'notes' | 'exam' | 'practice';
+type PracticeView = 'list' | 'create' | 'edit';
 
 const SUBJECT_KEYS = Object.keys(SUBJECT_META) as SubjectKey[];
 
-// ── Practice Card Builder (Phase 5) — inline in Lab ─────────────────────────
+// ── Practice Card Builder ─────────────────────────────────────────────────────
 
 interface PracticeQuestion {
   id: string;
@@ -30,13 +31,29 @@ function newPQ(): PracticeQuestion {
   return { id: `pq-${Date.now()}-${Math.random().toString(36).slice(2)}`, question: '', options: ['', '', '', ''], correctIndex: 0, marks: 1 };
 }
 
-function PracticeCardBuilder() {
-  const [title, setTitle] = useState('');
-  const [subject, setSubject] = useState<SubjectKey>('maths');
-  const [classLevel, setClassLevel] = useState<3 | 4 | 5>(4);
-  const [difficulty, setDifficulty] = useState<'Easy' | 'Medium' | 'Hard'>('Medium');
-  const [questions, setQuestions] = useState<PracticeQuestion[]>([newPQ()]);
-  const [saved, setSaved] = useState(false);
+interface PracticeCardBuilderProps {
+  initialData?: SubjectActivity | null;
+  onBack: () => void;
+}
+
+function PracticeCardBuilder({ initialData, onBack }: PracticeCardBuilderProps) {
+  const isEditing = !!initialData;
+
+  const [title, setTitle] = useState(initialData?.title ?? '');
+  const [subject, setSubject] = useState<SubjectKey>(initialData?.subject ?? 'maths');
+  const [classLevel, setClassLevel] = useState<3 | 4 | 5>(initialData?.class ?? 4);
+  const [difficulty, setDifficulty] = useState<'Easy' | 'Medium' | 'Hard'>(initialData?.difficulty ?? 'Medium');
+  const [questions, setQuestions] = useState<PracticeQuestion[]>(
+    initialData?.questions?.length
+      ? initialData.questions.map((q) => ({
+          id: q.id,
+          question: q.question,
+          options: (q.options ?? []).length >= 4 ? [...(q.options ?? [])] : [...(q.options ?? []), ...Array(4 - (q.options ?? []).length).fill('')],
+          correctIndex: q.correctIndex ?? 0,
+          marks: 1,
+        }))
+      : [newPQ()]
+  );
 
   const addQ = () => setQuestions((prev) => [...prev, newPQ()]);
   const removeQ = (idx: number) => setQuestions((prev) => prev.filter((_, i) => i !== idx));
@@ -55,8 +72,9 @@ function PracticeCardBuilder() {
     const validQs = questions.filter((q) => q.question.trim() && q.options.some((o) => o.trim()));
     if (validQs.length === 0) { toast.error('Add at least one question.'); return; }
     const meta = SUBJECT_META[subject];
+    const id = isEditing ? initialData!.id : `pc-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     saveUploadedActivity({
-      id: `pc-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      id,
       subject,
       class: classLevel,
       title: title.trim(),
@@ -80,28 +98,20 @@ function PracticeCardBuilder() {
         };
       }),
     });
-    toast.success(`✅ Card "${title}" saved to ${meta.label} in Subjects tab!`);
-    setSaved(true);
+    toast.success(isEditing ? `✅ "${title}" updated!` : `✅ "${title}" saved to ${meta.label}!`);
+    onBack();
   };
-
-  if (saved) {
-    return (
-      <div className="text-center py-12">
-        <div className="text-6xl mb-4">🎉</div>
-        <h3 className="text-xl font-extrabold text-purple-800 mb-2">Card Saved!</h3>
-        <p className="text-purple-400 font-medium mb-6">It will appear in the Subjects tab under {SUBJECT_META[subject].label}.</p>
-        <button onClick={() => { setTitle(''); setQuestions([newPQ()]); setSaved(false); }}
-          className="px-6 py-3 bg-purple-500 text-white rounded-2xl font-bold hover:bg-purple-600">
-          + Create Another Card
-        </button>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <button onClick={onBack} className="p-2 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-600 font-bold transition-colors">←</button>
+        <h2 className="text-base font-extrabold text-purple-800">{isEditing ? '✏️ Edit Practice Card' : '+ New Practice Card'}</h2>
+      </div>
+
       <div className="bg-white rounded-3xl border-2 border-purple-100 p-4 shadow-sm">
-        <p className="font-extrabold text-purple-700 mb-3">Practice Card Details</p>
+        <p className="font-extrabold text-purple-700 mb-3">Card Details</p>
         <div className="space-y-3">
           <input value={title} onChange={(e) => setTitle(e.target.value)}
             placeholder="Card title (e.g. Multiplication Tables)"
@@ -181,9 +191,117 @@ function PracticeCardBuilder() {
         </button>
         <button onClick={handleSave} disabled={!title.trim()}
           className="flex-1 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-extrabold rounded-2xl shadow-lg transition-all active:scale-95 disabled:opacity-50">
-          🚀 Save to Subjects
+          {isEditing ? '✅ Update Card' : '🚀 Save to Subjects'}
         </button>
       </div>
+    </div>
+  );
+}
+
+// ── My Cards List ─────────────────────────────────────────────────────────────
+
+interface MyCardsListProps {
+  onEdit: (card: SubjectActivity) => void;
+  onCreateNew: () => void;
+  refreshKey: number;
+}
+
+function MyCardsList({ onEdit, onCreateNew, refreshKey }: MyCardsListProps) {
+  const [cards, setCards] = useState<SubjectActivity[]>([]);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCards(getUploadedActivities());
+    getUploadedActivitiesAsync().then(setCards).catch(() => {});
+  }, [refreshKey]);
+
+  const handleDelete = (id: string) => {
+    deleteUploadedActivity(id);
+    setCards((prev) => prev.filter((c) => c.id !== id));
+    setDeleteConfirmId(null);
+    toast.success('Card deleted.');
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-extrabold text-purple-800">🃏 My Practice Cards</h2>
+          <p className="text-xs text-purple-400 font-medium">{cards.length} card{cards.length !== 1 ? 's' : ''} saved</p>
+        </div>
+        <button onClick={onCreateNew}
+          className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-extrabold text-sm rounded-2xl shadow transition-all active:scale-95 hover:opacity-90">
+          + New Card
+        </button>
+      </div>
+
+      {cards.length === 0 ? (
+        <div className="text-center py-16 bg-white rounded-3xl border-2 border-dashed border-purple-200">
+          <div className="text-5xl mb-3">🃏</div>
+          <p className="font-extrabold text-purple-700 mb-1">No practice cards yet</p>
+          <p className="text-xs text-purple-400 mb-4">Create your first card to add activities for the children</p>
+          <button onClick={onCreateNew}
+            className="px-6 py-2.5 bg-purple-500 text-white font-bold rounded-2xl hover:bg-purple-600 transition-all">
+            + Create First Card
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {cards.map((card) => (
+            <div key={card.id} className={`${card.color} rounded-3xl border-2 border-transparent p-4 shadow-md`}>
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-3xl">{card.emoji}</span>
+                  <div>
+                    <p className="font-extrabold text-gray-800 text-sm leading-tight">{card.title}</p>
+                    <div className="flex gap-1 mt-0.5 flex-wrap">
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${card.levelColor}`}>
+                        {SUBJECT_META[card.subject as SubjectKey]?.label ?? card.subject}
+                      </span>
+                      <span className="text-xs px-1.5 py-0.5 rounded-full font-bold bg-white text-purple-700">
+                        Class {card.class}
+                      </span>
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${
+                        card.difficulty === 'Easy' ? 'bg-green-100 text-green-700' :
+                        card.difficulty === 'Hard' ? 'bg-red-100 text-red-700' :
+                        'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {card.difficulty}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-1 flex-shrink-0">
+                  <button onClick={() => onEdit(card)}
+                    className="p-2 rounded-xl bg-white text-purple-600 hover:bg-purple-100 transition-colors text-sm font-bold"
+                    title="Edit card">
+                    ✏️
+                  </button>
+                  <button onClick={() => setDeleteConfirmId(card.id)}
+                    className="p-2 rounded-xl bg-white text-red-400 hover:bg-red-50 transition-colors text-sm font-bold"
+                    title="Delete card">
+                    🗑️
+                  </button>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mb-2">{card.questions.length} question{card.questions.length !== 1 ? 's' : ''}</p>
+
+              {deleteConfirmId === card.id && (
+                <div className="mt-1 p-2 bg-red-50 rounded-xl border border-red-200">
+                  <p className="text-xs text-red-700 font-bold mb-1">Delete "{card.title}"?</p>
+                  <div className="flex gap-1">
+                    <button onClick={() => handleDelete(card.id)}
+                      className="px-3 py-1 bg-red-500 text-white rounded-lg text-xs font-bold">Yes, delete</button>
+                    <button onClick={() => setDeleteConfirmId(null)}
+                      className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs font-bold">Cancel</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -202,6 +320,10 @@ export default function LabContent() {
   const [generatedActivities, setGeneratedActivities] = useState<any[]>([]);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
+  // Practice Cards view state
+  const [practiceView, setPracticeView] = useState<PracticeView>('list');
+  const [editingCard, setEditingCard] = useState<SubjectActivity | null>(null);
+  const [cardRefreshKey, setCardRefreshKey] = useState(0);
 
   useEffect(() => {
     const isUnlocked = typeof window !== 'undefined' && sessionStorage.getItem('kkz_lab_unlocked') === 'true';
@@ -361,7 +483,7 @@ export default function LabContent() {
         {/* Tab bar */}
         <div className="flex gap-1 bg-white rounded-2xl border-2 border-purple-100 p-1 mb-5 overflow-x-auto shadow-sm">
           {TABS.map((tab) => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+            <button key={tab.id} onClick={() => { setActiveTab(tab.id); if (tab.id === 'practice') { setPracticeView('list'); setEditingCard(null); } }}
               className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-bold text-sm whitespace-nowrap transition-all flex-1 justify-center ${activeTab === tab.id ? 'bg-purple-500 text-white shadow-md' : 'text-purple-500 hover:bg-purple-50'}`}>
               <span>{tab.emoji}</span>
               <span className="hidden sm:inline">{tab.label}</span>
@@ -516,8 +638,23 @@ export default function LabContent() {
         )}
 
         {/* ── PRACTICE CARDS TAB ── */}
-        {activeTab === 'practice' && (
-          <PracticeCardBuilder />
+        {activeTab === 'practice' && practiceView === 'list' && (
+          <MyCardsList
+            refreshKey={cardRefreshKey}
+            onCreateNew={() => { setEditingCard(null); setPracticeView('create'); }}
+            onEdit={(card) => { setEditingCard(card); setPracticeView('edit'); }}
+          />
+        )}
+        {activeTab === 'practice' && practiceView === 'create' && (
+          <PracticeCardBuilder
+            onBack={() => { setPracticeView('list'); setCardRefreshKey((k) => k + 1); }}
+          />
+        )}
+        {activeTab === 'practice' && practiceView === 'edit' && (
+          <PracticeCardBuilder
+            initialData={editingCard}
+            onBack={() => { setEditingCard(null); setPracticeView('list'); setCardRefreshKey((k) => k + 1); }}
+          />
         )}
 
         {/* Generate New Story — shown in notes tab */}

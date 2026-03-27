@@ -249,7 +249,7 @@ export default function MathsContent() {
                   <div key={activity.id} className={`${activity.color} rounded-3xl border-2 border-transparent p-5 shadow-md hover:shadow-xl transition-all`}>
                     <div className="flex items-start justify-between mb-3">
                       <span className="text-4xl">{activity.emoji}</span>
-                      <span className="text-xs bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 font-bold">📤 New</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${activity.levelColor}`}>Class {activity.class}</span>
                     </div>
                     <h3 className="font-extrabold text-gray-800 text-base mb-1">{activity.title}</h3>
                     <p className="text-xs text-gray-500 mb-3">{activity.questions.length} questions · practice card</p>

@@ -146,7 +146,6 @@ export default function SubjectContent({ subject, child: childParam, classOverri
                 <div className="flex items-start justify-between mb-3">
                   <span className="text-4xl">{activity.emoji}</span>
                   <div className="flex gap-1">
-                    {activity.source === 'uploaded' && <span className="text-xs bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 font-bold">📤 New</span>}
                     <span className={`text-xs font-extrabold px-2 py-0.5 rounded-full ${activity.levelColor}`}>Class {activity.class}</span>
                   </div>
                 </div>
