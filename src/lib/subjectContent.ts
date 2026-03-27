@@ -1358,12 +1358,11 @@ export function getUploadedActivities(): SubjectActivity[] {
   return getLocalActivities();
 }
 
-export function saveUploadedActivity(activity: SubjectActivity): void {
+export async function saveUploadedActivity(activity: SubjectActivity): Promise<void> {
   if (typeof window === 'undefined') return;
   const existing = getLocalActivities().filter((a) => a.id !== activity.id);
   setLocalActivities([activity, ...existing]);
-  // Fire-and-forget Supabase sync
-  saveActivityToSupabase(activity).catch(() => {});
+  await saveActivityToSupabase(activity);
 }
 
 export function deleteUploadedActivity(id: string): void {

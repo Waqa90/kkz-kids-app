@@ -67,13 +67,13 @@ function PracticeCardBuilder({ initialData, onBack }: PracticeCardBuilderProps) 
       return { ...q, options: opts };
     }));
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!title.trim()) { toast.error('Enter a card title.'); return; }
     const validQs = questions.filter((q) => q.question.trim() && q.options.some((o) => o.trim()));
     if (validQs.length === 0) { toast.error('Add at least one question.'); return; }
     const meta = SUBJECT_META[subject];
     const id = isEditing ? initialData!.id : `pc-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    saveUploadedActivity({
+    await saveUploadedActivity({
       id,
       subject,
       class: classLevel,
