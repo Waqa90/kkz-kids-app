@@ -66,14 +66,19 @@ function PracticeCardBuilder() {
       activityType: 'multiple-choice',
       source: 'uploaded',
       difficulty,
-      questions: validQs.map((q) => ({
-        id: q.id,
-        question: q.question,
-        type: 'multiple-choice' as const,
-        options: q.options.filter((o) => o.trim()),
-        correctAnswer: q.options[q.correctIndex] ?? q.options[0],
-        correctIndex: q.correctIndex,
-      })),
+      questions: validQs.map((q) => {
+        const filteredOptions = q.options.filter((o) => o.trim());
+        const correctAnswer = q.options[q.correctIndex] ?? q.options[0];
+        const newCorrectIndex = Math.max(0, filteredOptions.indexOf(correctAnswer));
+        return {
+          id: q.id,
+          question: q.question,
+          type: 'multiple-choice' as const,
+          options: filteredOptions,
+          correctAnswer,
+          correctIndex: newCorrectIndex,
+        };
+      }),
     });
     toast.success(`✅ Card "${title}" saved to ${meta.label} in Subjects tab!`);
     setSaved(true);

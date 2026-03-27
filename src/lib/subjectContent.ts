@@ -1342,9 +1342,13 @@ export async function getUploadedActivitiesAsync(): Promise<SubjectActivity[]> {
       .eq('profile_key', PROFILE_KEY)
       .order('created_at', { ascending: false });
     if (error || !data) return getLocalActivities();
-    const activities = data.map(rowToActivity);
-    setLocalActivities(activities);
-    return activities;
+    const fromSupabase = data.map(rowToActivity);
+    // Merge: keep local-only activities not yet confirmed in Supabase (e.g. just saved)
+    const supabaseIds = new Set(fromSupabase.map((a) => a.id));
+    const localOnly = getLocalActivities().filter((a) => !supabaseIds.has(a.id));
+    const merged = [...localOnly, ...fromSupabase];
+    setLocalActivities(merged);
+    return merged;
   } catch { return getLocalActivities(); }
 }
 

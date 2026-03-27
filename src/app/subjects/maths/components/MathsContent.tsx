@@ -6,6 +6,9 @@ import { MATHS_SETS, type MathsSet, type MathsQuestion } from '@/lib/maths';
 import { saveMathsResultAsync } from '@/lib/mathsResults';
 import { isSubjectEnabled, getChildControls, getChildClassFromSettings } from '@/app/parent/components/SettingsPanel';
 import { CHILD_NAMES, type ChildName } from '@/lib/childProfile';
+import { getAllActivities, getUploadedActivitiesAsync, type SubjectActivity } from '@/lib/subjectContent';
+import { saveSubjectResultAsync } from '@/lib/subjectResults';
+import SubjectActivityRunner, { type SubjectQuestion } from '@/components/SubjectActivityRunner';
 import { playCorrectSound, playWrongSound, playAchievementSound, playGoodJobSound, playNumberTapSound } from '@/lib/sounds';
 import { speak, stopSpeech } from '@/lib/speech';
 import { playCelebrationVoiceForMaths } from '@/lib/celebrationVoice';
@@ -27,6 +30,8 @@ export default function MathsContent() {
 
   const [screen, setScreen] = useState<Screen>('selector');
   const [activeSet, setActiveSet] = useState<MathsSet | null>(null);
+  const [selectedUploadedActivity, setSelectedUploadedActivity] = useState<SubjectActivity | null>(null);
+  const [, forceUpdate] = React.useState(0);
   const [qIndex, setQIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [typedAnswer, setTypedAnswer] = useState('');
@@ -43,6 +48,10 @@ export default function MathsContent() {
   useEffect(() => {
     if (!childName) router.replace('/subjects');
   }, [childName, router]);
+
+  useEffect(() => {
+    getUploadedActivitiesAsync().then(() => forceUpdate((n) => n + 1)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (screen === 'quiz' && activeSet && childName && getChildControls(childName).soundEnabled) {
@@ -75,8 +84,11 @@ export default function MathsContent() {
   }
 
   const controls = getChildControls(childName);
-  const childClass = getChildClassFromSettings(childName);
+  const defaultClass = getChildClassFromSettings(childName);
+  const parsedOverride = searchParams.get('class') ? parseInt(searchParams.get('class')!) : null;
+  const childClass = (parsedOverride === 3 || parsedOverride === 4 || parsedOverride === 5) ? parsedOverride : defaultClass;
   const filteredSets = MATHS_SETS.filter((s) => s.class === childClass);
+  const uploadedMathsActivities = getAllActivities('maths', childClass).filter((a) => a.source === 'uploaded');
 
   const startSet = (set: MathsSet) => {
     setActiveSet(set);
@@ -174,6 +186,47 @@ export default function MathsContent() {
     handleAnswer(typedAnswer.trim());
   };
 
+  // ── Uploaded practice card runner ──────────────────────────────────────
+  if (selectedUploadedActivity) {
+    const questions: SubjectQuestion[] = selectedUploadedActivity.questions.map((q) => ({
+      id: q.id,
+      question: q.question,
+      type: q.type === 'match' ? 'multiple-choice' : q.type === 'short-answer' ? 'typed' : q.type,
+      options: q.options,
+      correctAnswer: q.correctAnswer,
+      correctIndex: q.correctIndex,
+      hint: q.hint,
+      emoji: q.emoji,
+    }));
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-orange-50 to-pink-50 pb-24 md:pb-0">
+        <AppNav />
+        <SubjectActivityRunner
+          questions={questions}
+          childName={childName}
+          subjectKey="maths"
+          activityTitle={selectedUploadedActivity.title}
+          onComplete={(score, total) => {
+            saveSubjectResultAsync({
+              activityId: selectedUploadedActivity.id,
+              activityTitle: selectedUploadedActivity.title,
+              subject: 'maths',
+              activityType: selectedUploadedActivity.activityType,
+              childName,
+              class: childClass,
+              score,
+              total,
+            });
+            setSelectedUploadedActivity(null);
+          }}
+          onBack={() => setSelectedUploadedActivity(null)}
+          showHints={controls.showHints}
+          soundEnabled={controls.soundEnabled}
+        />
+      </div>
+    );
+  }
+
   // ── Selector screen ────────────────────────────────────────────────────
   if (screen === 'selector') {
     return (
@@ -184,10 +237,33 @@ export default function MathsContent() {
             <button onClick={() => router.push(`/subjects?child=${childName}`)} className="p-2 rounded-xl bg-purple-100 hover:bg-purple-200 text-purple-600 font-bold transition-colors">←</button>
             <div>
               <h1 className="text-2xl font-extrabold text-purple-800">🔢 Maths</h1>
-              <p className="text-sm text-purple-500">Class {childClass} activities for {childName}</p>
+              <p className="text-sm text-purple-500">Class {childClass} · {childName}</p>
             </div>
           </div>
           <MathsSetSelector sets={filteredSets} childName={childName} onSelect={startSet} />
+          {uploadedMathsActivities.length > 0 && (
+            <div className="mt-6">
+              <p className="text-xs font-extrabold text-purple-500 uppercase tracking-wide mb-3">📤 Practice Cards</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {uploadedMathsActivities.map((activity) => (
+                  <div key={activity.id} className={`${activity.color} rounded-3xl border-2 border-transparent p-5 shadow-md hover:shadow-xl transition-all`}>
+                    <div className="flex items-start justify-between mb-3">
+                      <span className="text-4xl">{activity.emoji}</span>
+                      <span className="text-xs bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 font-bold">📤 New</span>
+                    </div>
+                    <h3 className="font-extrabold text-gray-800 text-base mb-1">{activity.title}</h3>
+                    <p className="text-xs text-gray-500 mb-3">{activity.questions.length} questions · practice card</p>
+                    <button
+                      onClick={() => setSelectedUploadedActivity(activity)}
+                      className="w-full py-2.5 bg-orange-400 hover:bg-orange-500 text-white font-extrabold rounded-2xl transition-all active:scale-95 shadow-sm"
+                    >
+                      Start! 🚀
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </main>
       </div>
     );
