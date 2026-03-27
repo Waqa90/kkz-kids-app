@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { getLabNotes, getLabNotesAsync, deleteLabNote, updateLabNote, type LabNote } from '@/lib/labNotes';
-import { saveUploadedActivity } from '@/lib/subjectContent';
+import { saveUploadedActivity, getUploadedActivitiesAsync } from '@/lib/subjectContent';
 import { SUBJECT_META, type SubjectKey } from '@/lib/childProfile';
 import { loadParentSettings } from '@/app/parent/components/SettingsPanel';
 import PinGate from '@/components/PinGate';
@@ -155,7 +155,7 @@ function PracticeCardBuilder() {
                   <input value={opt} onChange={(e) => updateOpt(qi, oi, e.target.value)}
                     placeholder={`Option ${String.fromCharCode(65 + oi)}`}
                     className={`flex-1 px-3 py-1.5 rounded-xl border-2 text-sm font-medium focus:outline-none ${q.correctIndex === oi ? 'border-green-400 bg-green-50' : 'border-gray-200 focus:border-purple-300'}`} />
-                  <button onClick={() => updateQ(qi, { correctAnswer: opt, correctIndex: oi })}
+                  <button onClick={() => updateQ(qi, { correctIndex: oi })}
                     className={`text-xs px-2 py-1 rounded-lg font-bold ${q.correctIndex === oi ? 'bg-green-400 text-white' : 'bg-gray-100 text-gray-400 hover:bg-green-100'}`}>
                     ✓
                   </button>
@@ -210,7 +210,11 @@ export default function LabContent() {
   }, []);
 
   useEffect(() => {
-    if (unlocked) loadNotes();
+    if (unlocked) {
+      loadNotes();
+      // Sync uploaded activities from Supabase so phone-created cards appear on desktop
+      getUploadedActivitiesAsync().catch(() => {});
+    }
   }, [unlocked, loadNotes]);
 
   const handleUnlock = () => {
@@ -267,8 +271,11 @@ export default function LabContent() {
         }),
       });
       const data = await response.json();
-      const content = data.content ?? data.message ?? data.choices?.[0]?.message?.content ?? '';
-      const parsed = JSON.parse(content);
+      if (!response.ok) throw new Error(data.error ?? data.details ?? 'API error');
+      const raw = data.content ?? data.message ?? data.choices?.[0]?.message?.content ?? '';
+      // Strip markdown code fences Gemini sometimes wraps around JSON
+      const clean = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+      const parsed = JSON.parse(clean);
       const acts = parsed.activities ?? [];
       setGeneratedActivities(acts);
       updateLabNote(selectedNote.id, { processedActivities: acts });

@@ -44,6 +44,7 @@ interface ActivityRow {
   dateTime: string;
   level?: string;
   levelColor?: string;
+  classLevel?: number;
 }
 
 function getStoryLevel(storyTitle: string): { level: string; levelColor: string } {
@@ -82,11 +83,11 @@ function nounVerbAdjectiveToRow(r: NounVerbAdjectiveResult): ActivityRow {
 }
 
 function mathsToRow(r: MathsResult): ActivityRow {
-  return { id: r.id, storyTitle: r.mathsSetTitle, childName: r.childName, subject: 'Maths', activity: 'Maths', score: r.score, total: r.total, dateTime: r.dateTime, level: `Class ${r.class}`, levelColor: 'bg-green-100 text-green-700' };
+  return { id: r.id, storyTitle: r.mathsSetTitle, childName: r.childName, subject: 'Maths', activity: 'Maths', score: r.score, total: r.total, dateTime: r.dateTime, level: `Class ${r.class}`, levelColor: 'bg-green-100 text-green-700', classLevel: r.class };
 }
 
 function subjectToRow(r: SubjectResult): ActivityRow {
-  return { id: r.id, storyTitle: r.activityTitle, childName: r.childName, subject: r.subject.charAt(0).toUpperCase() + r.subject.slice(1).replace('-', ' '), activity: 'Subject', score: r.score, total: r.total, dateTime: r.dateTime, level: `${r.subject} C${r.class}`, levelColor: 'bg-blue-100 text-blue-700' };
+  return { id: r.id, storyTitle: r.activityTitle, childName: r.childName, subject: r.subject.charAt(0).toUpperCase() + r.subject.slice(1).replace('-', ' '), activity: 'Subject', score: r.score, total: r.total, dateTime: r.dateTime, level: `${r.subject} C${r.class}`, levelColor: 'bg-blue-100 text-blue-700', classLevel: r.class };
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -210,9 +211,10 @@ interface TableFilters {
   activity: string;
   level: string;
   subject: string;
+  classLevel: string;
 }
 
-const DEFAULT_FILTERS: TableFilters = { child: '', activity: '', level: '', subject: '' };
+const DEFAULT_FILTERS: TableFilters = { child: '', activity: '', level: '', subject: '', classLevel: '' };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -333,10 +335,11 @@ export default function ParentPage() {
     if (filters.subject && r.subject !== filters.subject) return false;
     if (filters.activity && r.activity !== filters.activity) return false;
     if (filters.level && r.level !== filters.level) return false;
+    if (filters.classLevel && r.classLevel !== parseInt(filters.classLevel)) return false;
     return true;
   });
 
-  const hasActiveFilters = filters.child !== '' || filters.activity !== '' || filters.level !== '' || filters.subject !== '';
+  const hasActiveFilters = filters.child !== '' || filters.activity !== '' || filters.level !== '' || filters.subject !== '' || filters.classLevel !== '';
   const displayedRows = showAll ? filteredRows : filteredRows.slice(0, DEFAULT_VISIBLE_ROWS);
   const hasMore = filteredRows.length > DEFAULT_VISIBLE_ROWS;
 
@@ -722,6 +725,15 @@ export default function ParentPage() {
                   className="px-3 py-1.5 text-xs font-bold rounded-xl border-2 border-purple-200 text-purple-700 bg-purple-50 focus:outline-none focus:border-purple-400 transition-colors">
                   <option value="">All Subjects</option>
                   {Array.from(new Set(rows.map(r => r.subject))).sort().map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+
+                {/* Class filter */}
+                <select value={filters.classLevel} onChange={(e) => { setFilters((f) => ({ ...f, classLevel: e.target.value })); setShowAll(false); }}
+                  className="px-3 py-1.5 text-xs font-bold rounded-xl border-2 border-purple-200 text-purple-700 bg-purple-50 focus:outline-none focus:border-purple-400 transition-colors">
+                  <option value="">All Classes</option>
+                  <option value="3">Class 3</option>
+                  <option value="4">Class 4</option>
+                  <option value="5">Class 5</option>
                 </select>
 
                 {/* Level filter */}

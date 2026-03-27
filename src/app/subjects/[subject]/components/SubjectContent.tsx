@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { SUBJECT_META, CHILD_NAMES, type ChildName, type SubjectKey } from '@/lib/childProfile';
 import { isSubjectEnabled, getChildControls, getChildClassFromSettings, loadParentSettings } from '@/app/parent/components/SettingsPanel';
-import { getAllActivities, type SubjectActivity } from '@/lib/subjectContent';
+import { getAllActivities, getUploadedActivitiesAsync, type SubjectActivity } from '@/lib/subjectContent';
 import { saveSubjectResultAsync } from '@/lib/subjectResults';
 import SubjectActivityRunner, { type SubjectQuestion } from '@/components/SubjectActivityRunner';
 import AppNav from '@/components/AppNav';
@@ -14,16 +14,21 @@ const VALID_SUBJECTS: SubjectKey[] = ['english', 'maths', 'science', 'social-stu
 interface SubjectContentProps {
   subject: string;
   child?: string;
+  classOverride?: string;
 }
 
-export default function SubjectContent({ subject, child: childParam }: SubjectContentProps) {
+export default function SubjectContent({ subject, child: childParam, classOverride }: SubjectContentProps) {
   const router = useRouter();
   const [selectedActivity, setSelectedActivity] = useState<SubjectActivity | null>(null);
   const [childSettings, setChildSettings] = useState(() => loadParentSettings().children);
 
+  const [, forceUpdate] = React.useState(0);
+
   useEffect(() => {
     const reload = () => setChildSettings(loadParentSettings().children);
     window.addEventListener('kitty_settings_changed', reload);
+    // Sync uploaded activities from Supabase on mount
+    getUploadedActivitiesAsync().then(() => forceUpdate(n => n + 1)).catch(() => {});
     return () => window.removeEventListener('kitty_settings_changed', reload);
   }, []);
 
@@ -50,7 +55,9 @@ export default function SubjectContent({ subject, child: childParam }: SubjectCo
   const enabled = isSubjectEnabled(childName, subjectKey);
   const meta = SUBJECT_META[subjectKey];
   const controls = getChildControls(childName);
-  const childClass = getChildClassFromSettings(childName);
+  const defaultClass = getChildClassFromSettings(childName);
+  const parsedOverride = classOverride ? parseInt(classOverride) : null;
+  const childClass = (parsedOverride === 3 || parsedOverride === 4 || parsedOverride === 5) ? parsedOverride : defaultClass;
   const activities = getAllActivities(subjectKey, childClass);
   const childData = childSettings[childName];
 

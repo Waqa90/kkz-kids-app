@@ -31,7 +31,7 @@ export const SUBJECT_META: Record<SubjectKey, {
 
 export const SUBJECTS_BY_CHILD: Record<string, SubjectKey[]> = {
   Karawa: ['maths', 'english', 'science', 'social-studies', 'healthy-living'],
-  Zech:   ['maths', 'english', 'mce', 'fijian'],
+  Zech:   ['maths', 'english', 'social-studies', 'healthy-living', 'mce', 'fijian'],
   Kitty:  ['english', 'maths', 'science', 'social-studies', 'healthy-living', 'fijian'],
 };
 
