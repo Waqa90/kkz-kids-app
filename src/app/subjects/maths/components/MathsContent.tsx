@@ -144,7 +144,9 @@ export default function MathsContent() {
   const handleAnswer = (answer: string) => {
     if (!activeSet || feedback !== null) return;
     const q = activeSet.questions[qIndex];
-    const correct = answer.trim() === String(q.correctAnswer).trim();
+    const correct = (q.type === 'multiple-choice' && q.correctIndex !== undefined && q.options)
+      ? q.options[q.correctIndex] === answer.trim()
+      : answer.trim() === String(q.correctAnswer).trim();
     setSelectedOpt(answer);
     setFeedback(correct ? 'correct' : 'wrong');
 
@@ -319,7 +321,11 @@ export default function MathsContent() {
                     </div>
                     <div className="px-4 py-2 bg-green-50 border-2 border-green-200 rounded-xl">
                       <p className="text-xs text-green-500 font-bold">Correct Answer</p>
-                      <p className="text-lg font-extrabold text-green-600">{String(r.question.correctAnswer)}</p>
+                      <p className="text-lg font-extrabold text-green-600">
+                        {(r.question.type === 'multiple-choice' && r.question.correctIndex !== undefined && r.question.options)
+                          ? r.question.options[r.question.correctIndex]
+                          : String(r.question.correctAnswer)}
+                      </p>
                     </div>
                   </div>
                   {r.question.hint && (
@@ -401,7 +407,7 @@ export default function MathsContent() {
               <p className="text-2xl font-extrabold text-purple-900 text-center">{q.display}</p>
               {feedback && (
                 <p className={`text-center font-extrabold mt-2 text-lg ${feedback === 'correct' ? 'text-green-600' : 'text-red-600'}`}>
-                  {feedback === 'correct' ? '✅ Correct!' : `❌ Answer: ${q.correctAnswer}`}
+                  {feedback === 'correct' ? '✅ Correct!' : `❌ Answer: ${(q.type === 'multiple-choice' && q.correctIndex !== undefined && q.options) ? q.options[q.correctIndex] : q.correctAnswer}`}
                 </p>
               )}
             </div>
