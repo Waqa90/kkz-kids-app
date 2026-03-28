@@ -73,7 +73,7 @@ export default function GenerateStory({ activityResults }: GenerateStoryProps) {
   const [isAdded, setIsAdded] = useState(false);
   const [addedStories, setAddedStories] = useState<string[]>([]);
 
-  const { response, isLoading, error, sendMessage } = useChat('OPENROUTER', 'meta-llama/llama-3.3-70b-instruct:free', false);
+  const { response, isLoading, error, sendMessage } = useChat('GROQ', 'llama-3.3-70b-versatile', false);
 
   useEffect(() => {
     if (error) toast.error(error.message);

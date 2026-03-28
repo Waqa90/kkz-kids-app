@@ -86,8 +86,8 @@ function ChildPanel({ childName, displayName, emoji, photoUrl, results }: ChildP
   const colors = CHILD_COLORS[childName] ?? { color: 'bg-purple-50 border-purple-200', btnColor: 'bg-purple-500 hover:bg-purple-600 disabled:bg-purple-300' };
 
   const { response, isLoading, error, sendMessage } = useChat(
-    'OPENROUTER',
-    'meta-llama/llama-3.3-70b-instruct:free',
+    'GROQ',
+    'llama-3.3-70b-versatile',
     false
   );
 

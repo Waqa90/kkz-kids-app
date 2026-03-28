@@ -7,6 +7,7 @@ const API_KEYS: Record<string, string | undefined> = {
   GEMINI: process.env.GEMINI_API_KEY,
   PERPLEXITY: process.env.PERPLEXITY_API_KEY,
   OPENROUTER: process.env.OPENROUTER_API_KEY,
+  GROQ: process.env.GROQ_API_KEY,
 };
 
 function formatErrorResponse(error: unknown, provider?: string) {
@@ -102,6 +103,31 @@ export async function POST(request: NextRequest) {
         console.error('[OpenRouter] Error:', res.status, errBody);
         return NextResponse.json(
           { error: `OpenRouter error: ${res.status}`, details: errBody },
+          { status: res.status }
+        );
+      }
+      const data = await res.json();
+      return NextResponse.json(data);
+    }
+
+    // ── Groq: OpenAI-compatible ──
+    if (provider === 'GROQ') {
+      const allMessages = systemPrompt
+        ? [{ role: 'system', content: systemPrompt }, ...messages]
+        : messages;
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({ model, messages: allMessages, ...parameters }),
+      });
+      if (!res.ok) {
+        const errBody = await res.text();
+        console.error('[Groq] Error:', res.status, errBody);
+        return NextResponse.json(
+          { error: `Groq error: ${res.status}`, details: errBody },
           { status: res.status }
         );
       }
