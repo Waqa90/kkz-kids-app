@@ -6,6 +6,7 @@ const API_KEYS: Record<string, string | undefined> = {
   ANTHROPIC: process.env.ANTHROPIC_API_KEY,
   GEMINI: process.env.GEMINI_API_KEY,
   PERPLEXITY: process.env.PERPLEXITY_API_KEY,
+  OPENROUTER: process.env.OPENROUTER_API_KEY,
 };
 
 function formatErrorResponse(error: unknown, provider?: string) {
@@ -79,6 +80,29 @@ export async function POST(request: NextRequest) {
     if (provider === 'GEMINI') {
       const content = await callGeminiDirect(model, messages, systemPrompt, apiKey);
       return NextResponse.json({ content });
+    }
+
+    // ── OpenRouter: OpenAI-compatible, return full response ──
+    if (provider === 'OPENROUTER') {
+      const allMessages = systemPrompt
+        ? [{ role: 'system', content: systemPrompt }, ...messages]
+        : messages;
+      const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+          'HTTP-Referer': 'https://kkzlearning.com',
+          'X-Title': 'KKZ Learning Hub',
+        },
+        body: JSON.stringify({ model, messages: allMessages }),
+      });
+      if (!res.ok) {
+        const errBody = await res.text();
+        throw new Error(`OpenRouter API ${res.status}: ${errBody}`);
+      }
+      const data = await res.json();
+      return NextResponse.json(data);
     }
 
     // ── Other providers: use llm-sdk ──

@@ -73,7 +73,7 @@ export default function GenerateStory({ activityResults }: GenerateStoryProps) {
   const [isAdded, setIsAdded] = useState(false);
   const [addedStories, setAddedStories] = useState<string[]>([]);
 
-  const { response, isLoading, error, sendMessage } = useChat('GEMINI', 'gemini/gemini-2.5-flash', false);
+  const { response, isLoading, error, sendMessage } = useChat('OPENROUTER', 'meta-llama/llama-3.3-70b-instruct:free', false);
 
   useEffect(() => {
     if (error) toast.error(error.message);
@@ -148,7 +148,7 @@ IMPORTANT: Return ONLY valid JSON in this exact format, no extra text:
         <span className="text-2xl">✨</span>
         <div>
           <h2 className="text-base font-extrabold text-purple-800">Generate New Story</h2>
-          <p className="text-xs text-purple-400">Gemini creates a story tailored for the selected class</p>
+          <p className="text-xs text-purple-400">AI creates a story tailored for the selected class</p>
         </div>
       </div>
 

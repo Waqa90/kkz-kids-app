@@ -386,8 +386,8 @@ export default function LabContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          provider: 'GEMINI',
-          model: 'gemini-2.0-flash',
+          provider: 'OPENROUTER',
+          model: 'meta-llama/llama-3.3-70b-instruct:free',
           messages: [
             {
               role: 'user',
@@ -411,7 +411,7 @@ export default function LabContent() {
       toast.success('Activities generated!');
     } catch (err) {
       console.error(err);
-      toast.error('Generation failed. Check your Gemini API key in Vercel settings.');
+      toast.error('Generation failed. Check your OpenRouter API key in Vercel settings.');
     } finally {
       setGenerating(false);
     }
