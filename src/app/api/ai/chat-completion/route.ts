@@ -95,11 +95,15 @@ export async function POST(request: NextRequest) {
           'HTTP-Referer': 'https://kkzlearning.com',
           'X-Title': 'KKZ Learning Hub',
         },
-        body: JSON.stringify({ model, messages: allMessages }),
+        body: JSON.stringify({ model, messages: allMessages, ...parameters }),
       });
       if (!res.ok) {
         const errBody = await res.text();
-        throw new Error(`OpenRouter API ${res.status}: ${errBody}`);
+        console.error('[OpenRouter] Error:', res.status, errBody);
+        return NextResponse.json(
+          { error: `OpenRouter error: ${res.status}`, details: errBody },
+          { status: res.status }
+        );
       }
       const data = await res.json();
       return NextResponse.json(data);
