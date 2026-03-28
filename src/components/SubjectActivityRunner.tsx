@@ -148,16 +148,18 @@ export default function SubjectActivityRunner({
                   <p className="mt-3 text-sm text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-xl px-3 py-2">💡 {r.question.hint}</p>
                 )}
               </div>
-              <div className="w-full md:w-64 bg-white rounded-2xl border-2 border-dashed border-purple-200 p-3 flex flex-col items-center">
-                <p className="text-xs text-purple-400 font-bold mb-2">Working Space</p>
-                <canvas width={230} height={160} className="border border-purple-100 rounded-xl bg-purple-50/30 cursor-crosshair touch-none"
-                  onMouseDown={(e) => { const ctx = e.currentTarget.getContext('2d'); if (ctx) { ctx.beginPath(); ctx.moveTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY); ctx.strokeStyle = '#6b21a8'; ctx.lineWidth = 2; ctx.lineCap = 'round'; } e.currentTarget.dataset.drawing = 'true'; }}
-                  onMouseMove={(e) => { if (e.currentTarget.dataset.drawing !== 'true') return; const ctx = e.currentTarget.getContext('2d'); if (ctx) { ctx.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY); ctx.stroke(); } }}
-                  onMouseUp={(e) => { e.currentTarget.dataset.drawing = 'false'; }}
-                  onMouseLeave={(e) => { e.currentTarget.dataset.drawing = 'false'; }}
-                />
-                <button onClick={(e) => { const canvas = (e.currentTarget.previousElementSibling as HTMLCanvasElement); const ctx = canvas?.getContext('2d'); if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height); }} className="mt-2 text-xs text-purple-400 hover:text-purple-600 font-bold">Clear</button>
-              </div>
+              {subjectKey === 'maths' && (
+                <div className="w-full md:w-[420px] bg-white rounded-2xl border-2 border-dashed border-purple-200 p-3 flex flex-col items-center">
+                  <p className="text-xs text-purple-400 font-bold mb-2">Working Space</p>
+                  <canvas width={380} height={200} className="border border-purple-100 rounded-xl bg-purple-50/30 cursor-crosshair touch-none w-full"
+                    onMouseDown={(e) => { const ctx = e.currentTarget.getContext('2d'); if (ctx) { ctx.beginPath(); ctx.moveTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY); ctx.strokeStyle = '#6b21a8'; ctx.lineWidth = 2; ctx.lineCap = 'round'; } e.currentTarget.dataset.drawing = 'true'; }}
+                    onMouseMove={(e) => { if (e.currentTarget.dataset.drawing !== 'true') return; const ctx = e.currentTarget.getContext('2d'); if (ctx) { ctx.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY); ctx.stroke(); } }}
+                    onMouseUp={(e) => { e.currentTarget.dataset.drawing = 'false'; }}
+                    onMouseLeave={(e) => { e.currentTarget.dataset.drawing = 'false'; }}
+                  />
+                  <button onClick={(e) => { const canvas = (e.currentTarget.previousElementSibling as HTMLCanvasElement); const ctx = canvas?.getContext('2d'); if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height); }} className="mt-2 text-xs text-purple-400 hover:text-purple-600 font-bold">Clear</button>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -296,26 +298,28 @@ export default function SubjectActivityRunner({
           )}
         </div>
 
-        {/* Right: Working Space Canvas */}
-        <div className="w-full md:w-72 bg-white rounded-2xl border-2 border-dashed border-purple-200 p-4 flex flex-col items-center">
-          <p className="text-sm text-purple-500 font-extrabold mb-3">✏️ Working Space</p>
-          <canvas
-            ref={canvasRef}
-            width={250}
-            height={300}
-            className="border-2 border-purple-100 rounded-xl bg-purple-50/30 cursor-crosshair touch-none w-full"
-            onMouseDown={(e) => { setIsDrawing(true); const ctx = e.currentTarget.getContext('2d'); if (ctx) { ctx.beginPath(); ctx.moveTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY); ctx.strokeStyle = '#6b21a8'; ctx.lineWidth = 2; ctx.lineCap = 'round'; } }}
-            onMouseMove={(e) => { if (!isDrawing) return; const ctx = e.currentTarget.getContext('2d'); if (ctx) { ctx.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY); ctx.stroke(); } }}
-            onMouseUp={() => setIsDrawing(false)}
-            onMouseLeave={() => setIsDrawing(false)}
-            onTouchStart={(e) => { setIsDrawing(true); const rect = e.currentTarget.getBoundingClientRect(); const ctx = e.currentTarget.getContext('2d'); if (ctx) { ctx.beginPath(); ctx.moveTo(e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top); ctx.strokeStyle = '#6b21a8'; ctx.lineWidth = 2; ctx.lineCap = 'round'; } }}
-            onTouchMove={(e) => { if (!isDrawing) return; const rect = e.currentTarget.getBoundingClientRect(); const ctx = e.currentTarget.getContext('2d'); if (ctx) { ctx.lineTo(e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top); ctx.stroke(); } }}
-            onTouchEnd={() => setIsDrawing(false)}
-          />
-          <button onClick={clearCanvas} className="mt-3 px-4 py-2 text-xs text-purple-500 hover:text-purple-700 font-bold bg-purple-50 rounded-xl hover:bg-purple-100 transition">
-            🗑️ Clear
-          </button>
-        </div>
+        {/* Right: Working Space Canvas — Maths only */}
+        {subjectKey === 'maths' && (
+          <div className="w-full md:w-[420px] bg-white rounded-2xl border-2 border-dashed border-purple-200 p-4 flex flex-col items-center">
+            <p className="text-sm text-purple-500 font-extrabold mb-3">✏️ Working Space</p>
+            <canvas
+              ref={canvasRef}
+              width={380}
+              height={340}
+              className="border-2 border-purple-100 rounded-xl bg-purple-50/30 cursor-crosshair touch-none w-full"
+              onMouseDown={(e) => { setIsDrawing(true); const ctx = e.currentTarget.getContext('2d'); if (ctx) { ctx.beginPath(); ctx.moveTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY); ctx.strokeStyle = '#6b21a8'; ctx.lineWidth = 2; ctx.lineCap = 'round'; } }}
+              onMouseMove={(e) => { if (!isDrawing) return; const ctx = e.currentTarget.getContext('2d'); if (ctx) { ctx.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY); ctx.stroke(); } }}
+              onMouseUp={() => setIsDrawing(false)}
+              onMouseLeave={() => setIsDrawing(false)}
+              onTouchStart={(e) => { setIsDrawing(true); const rect = e.currentTarget.getBoundingClientRect(); const ctx = e.currentTarget.getContext('2d'); if (ctx) { ctx.beginPath(); ctx.moveTo(e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top); ctx.strokeStyle = '#6b21a8'; ctx.lineWidth = 2; ctx.lineCap = 'round'; } }}
+              onTouchMove={(e) => { if (!isDrawing) return; const rect = e.currentTarget.getBoundingClientRect(); const ctx = e.currentTarget.getContext('2d'); if (ctx) { ctx.lineTo(e.touches[0].clientX - rect.left, e.touches[0].clientY - rect.top); ctx.stroke(); } }}
+              onTouchEnd={() => setIsDrawing(false)}
+            />
+            <button onClick={clearCanvas} className="mt-3 px-4 py-2 text-xs text-purple-500 hover:text-purple-700 font-bold bg-purple-50 rounded-xl hover:bg-purple-100 transition">
+              🗑️ Clear
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
