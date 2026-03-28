@@ -63,12 +63,7 @@ export default function SubjectActivityRunner({
   const q = questions[currentIndex];
 
   useEffect(() => {
-    if (q && soundEnabled) {
-      speakQuestion(q.question);
-    }
     return () => stopSpeech();
-    // Only trigger when the question index changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIndex]);
   const progress = ((currentIndex) / questions.length) * 100;
   const pct = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;

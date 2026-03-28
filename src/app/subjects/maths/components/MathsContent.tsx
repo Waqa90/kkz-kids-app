@@ -54,16 +54,7 @@ export default function MathsContent() {
   }, []);
 
   useEffect(() => {
-    if (screen === 'quiz' && activeSet && childName && getChildControls(childName).soundEnabled) {
-      const q = activeSet.questions[qIndex];
-      if (q) {
-        stopSpeech();
-        setIsSpeaking(true);
-        speak(q.display, { rate: 0.85, onEnd: () => setIsSpeaking(false), onError: () => setIsSpeaking(false) });
-      }
-    }
     return () => stopSpeech();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qIndex, screen]);
 
   if (!childName) return null;
